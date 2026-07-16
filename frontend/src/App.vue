@@ -34,44 +34,33 @@ import ToastContainer from "@/components/ui/ToastContainer.vue";
 /* WhatsApp Floating Action Button */
 .whatsapp-fab {
   position: fixed;
-  bottom: 2rem;
-  right: 2rem;
+  bottom: 1.5rem;
+  right: 1.5rem;
   z-index: 9000;
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.5rem;
   background: #25D366;
   color: #fff;
   border-radius: 999px;
-  padding: 0.75rem 1.25rem 0.75rem 0.9rem;
-  box-shadow: 0 4px 20px rgba(37, 211, 102, 0.4), 0 2px 8px rgba(0,0,0,0.15);
+  padding: 0.7rem 1.1rem 0.7rem 0.85rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
   text-decoration: none;
   font-weight: 600;
-  font-size: 0.875rem;
+  font-size: 0.85rem;
   font-family: var(--font-body);
-  transition: all 0.25s ease;
-  animation: whatsapp-pulse 2.5s ease-in-out infinite;
+  transition: background 0.2s ease, box-shadow 0.2s ease;
 }
 .whatsapp-fab:hover {
-  background: #128C7E;
-  transform: translateY(-3px);
-  box-shadow: 0 8px 28px rgba(37, 211, 102, 0.5), 0 4px 12px rgba(0,0,0,0.2);
+  background: #1da851;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
   color: #fff;
 }
-.whatsapp-fab svg {
-  flex-shrink: 0;
-}
-.whatsapp-fab-label {
-  white-space: nowrap;
-}
-
-@keyframes whatsapp-pulse {
-  0%, 100% { box-shadow: 0 4px 20px rgba(37, 211, 102, 0.4), 0 2px 8px rgba(0,0,0,0.15); }
-  50%       { box-shadow: 0 4px 28px rgba(37, 211, 102, 0.7), 0 2px 8px rgba(0,0,0,0.15); }
-}
+.whatsapp-fab svg { flex-shrink: 0; }
+.whatsapp-fab-label { white-space: nowrap; }
 
 @media (max-width: 480px) {
   .whatsapp-fab-label { display: none; }
-  .whatsapp-fab { padding: 0.85rem; border-radius: 50%; }
+  .whatsapp-fab { padding: 0.75rem; border-radius: 50%; }
 }
 </style>

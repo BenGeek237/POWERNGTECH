@@ -261,8 +261,7 @@ img {
 }
 
 .card:hover {
-  box-shadow: var(--shadow-lg);
-  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
 }
 
 /* ============================================================

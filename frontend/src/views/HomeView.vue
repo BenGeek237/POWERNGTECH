@@ -136,27 +136,15 @@
     <WhyChooseUs />
 
     <!-- TÉMOIGNAGES -->
-    <section class="section testimonials-section">
+    <section class="section section--alt">
       <div class="container">
-        <div class="section-header">
-          <p class="section-label">Ils nous font confiance</p>
-          <h2 class="section-title">Ce que disent nos apprenants</h2>
-          <p class="section-subtitle">
-            La satisfaction de nos étudiants est notre meilleure récompense.
-          </p>
-        </div>
+        <h2 class="section-title" style="margin-bottom: 2rem">Ce que disent nos apprenants</h2>
         <div class="testimonials-grid">
           <div v-for="t in testimonials" :key="t.name" class="testimonial-card">
-            <div class="testi-stars">
-              <Star v-for="i in 5" :key="i" :size="14" fill="#f59e0b" stroke="#f59e0b" />
-            </div>
             <blockquote class="testi-quote">« {{ t.quote }} »</blockquote>
             <div class="testi-author">
-              <div class="testi-avatar">{{ t.initials }}</div>
-              <div>
-                <strong>{{ t.name }}</strong>
-                <span>{{ t.role }}</span>
-              </div>
+              <strong>{{ t.name }}</strong>
+              <span>{{ t.role }}</span>
             </div>
           </div>
         </div>
@@ -195,7 +183,7 @@ import ProductCard from "@/components/boutique/ProductCard.vue";
 import ServiceCard from "@/components/home/ServiceCard.vue";
 import WhyChooseUs from "@/components/home/WhyChooseUs.vue";
 import { formationsApi, boutiqueApi, servicesApi } from "@/services/api";
-import { Sun, Zap, Wrench, Snowflake, Radio, Factory, Star } from "lucide-vue-next";
+import { Sun, Zap, Wrench, Snowflake, Radio, Factory } from "lucide-vue-next";
 
 const latestFormations = ref([]);
 const latestProducts = ref([]);
@@ -348,51 +336,34 @@ onMounted(async () => {
 }
 
 /* Testimonials */
-.testimonials-section { background: var(--color-neutral-50); }
 .testimonials-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 1.5rem;
+  gap: 1.25rem;
 }
 .testimonial-card {
-  background: #fff;
+  padding: 1.5rem;
   border: 1px solid var(--color-neutral-200);
-  border-radius: var(--radius-xl);
-  padding: 1.75rem;
-  box-shadow: var(--shadow-sm);
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  transition: box-shadow var(--transition-normal), transform var(--transition-normal);
+  border-radius: var(--radius-lg);
+  background: #fff;
 }
-.testimonial-card:hover { box-shadow: var(--shadow-md); transform: translateY(-3px); }
-.testi-stars { display: flex; gap: .2rem; }
 .testi-quote {
-  font-size: .925rem;
+  font-size: 0.9rem;
   color: var(--color-neutral-700);
   line-height: 1.75;
   font-style: italic;
-  flex: 1;
-  margin: 0;
-  border-left: 3px solid var(--color-secondary-500);
-  padding-left: .85rem;
+  margin: 0 0 1rem;
 }
-.testi-author {
-  display: flex;
-  align-items: center;
-  gap: .75rem;
-  padding-top: .75rem;
-  border-top: 1px solid var(--color-neutral-100);
+.testi-author strong {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-neutral-900);
 }
-.testi-avatar {
-  width: 40px; height: 40px; border-radius: 50%;
-  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
-  color: #fff;
-  display: flex; align-items: center; justify-content: center;
-  font-weight: 700; font-size: .8rem; flex-shrink: 0;
+.testi-author span {
+  font-size: 0.75rem;
+  color: var(--color-neutral-500);
 }
-.testi-author strong { display: block; font-size: .875rem; font-weight: 700; color: var(--color-primary-dark); }
-.testi-author span   { font-size: .75rem; color: var(--color-neutral-500); }
 
 @media (max-width: 768px) {
   .custom-training-inner { flex-direction: column; }
