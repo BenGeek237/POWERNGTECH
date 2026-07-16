@@ -80,6 +80,12 @@ const router = createRouter({
       component: () => import("@/views/ContactView.vue"),
       meta: { title: "Contact — POWER NG TECHNOLOGIE" },
     },
+    {
+      path: "/mentions-legales",
+      name: "mentions-legales",
+      component: () => import("@/views/MentionsLegalesView.vue"),
+      meta: { title: "Mentions Légales — POWER.NG TECHNOLOGY SARL" },
+    },
 
     // ---------------------------------------------------------------------------
     // Auth routes (guest only)

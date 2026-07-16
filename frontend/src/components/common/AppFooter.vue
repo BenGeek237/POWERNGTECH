@@ -80,8 +80,11 @@
     <div class="footer-bottom">
       <div class="container footer-bottom-inner">
         <p class="copyright">
-          © {{ currentYear }} POWER NG TECHNOLOGIE. Tous droits réservés.
+          © {{ currentYear }} POWER.NG TECHNOLOGY SARL. Tous droits réservés.
         </p>
+        <div class="footer-bottom-links">
+          <RouterLink to="/mentions-legales" class="footer-legal-link">Mentions Légales</RouterLink>
+        </div>
         <p class="footer-tagline">Votre partenaire technologique au Cameroun</p>
       </div>
     </div>
@@ -200,6 +203,9 @@ const currentYear = new Date().getFullYear();
   gap: 0.5rem;
 }
 .copyright { font-size: 0.8rem; color: rgba(255,255,255,0.5); }
+.footer-bottom-links { display: flex; gap: 1rem; }
+.footer-legal-link { font-size: 0.8rem; color: rgba(255,255,255,0.5); text-decoration: none; transition: color var(--transition-fast); }
+.footer-legal-link:hover { color: #fff; }
 .footer-tagline { font-size: 0.8rem; color: var(--color-secondary-500); }
 
 @media (max-width: 1024px) {
