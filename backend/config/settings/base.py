@@ -178,6 +178,10 @@ CAMERPAY_SECRET_KEY = os.getenv("CAMERPAY_SECRET_KEY", "")
 CAMERPAY_BASE_URL = os.getenv("CAMERPAY_BASE_URL", "https://app.camerpay.com/api/v1")
 CAMERPAY_WEBHOOK_SECRET = os.getenv("CAMERPAY_WEBHOOK_SECRET", "")
 
+# MONETBIL
+MONETBIL_SERVICE_KEY = os.getenv("MONETBIL_SERVICE_KEY", "")
+MONETBIL_SERVICE_SECRET = os.getenv("MONETBIL_SERVICE_SECRET", "")
+
 # Frontend URL
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 

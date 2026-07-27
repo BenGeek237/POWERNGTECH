@@ -2,7 +2,7 @@
 from django.urls import path
 from .views import (
     InitiatePaymentView, PaymentStatusView,
-    CamerpayWebhookView, CinetPayWebhookView,
+    CamerpayWebhookView, CinetPayWebhookView, MonetbilWebhookView,
     MyPaymentsView,
 )
 
@@ -13,6 +13,7 @@ urlpatterns = [
     path("statut/<str:reference>/", PaymentStatusView.as_view(), name="status"),
     path("webhook/", CamerpayWebhookView.as_view(), name="webhook"),
     path("cinetpay-webhook/", CinetPayWebhookView.as_view(), name="cinetpay-webhook"),
+    path("monetbil-webhook/", MonetbilWebhookView.as_view(), name="monetbil-webhook"),
     path("historique/", MyPaymentsView.as_view(), name="history"),
 ]
 

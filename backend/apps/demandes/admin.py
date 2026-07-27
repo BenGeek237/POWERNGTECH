@@ -1,6 +1,6 @@
 """POWER NG TECHNOLOGIE — Demandes Admin"""
 from django.contrib import admin
-from .models import DemandeFormation
+from .models import DemandeFormation, ContactMessage
 
 
 @admin.register(DemandeFormation)

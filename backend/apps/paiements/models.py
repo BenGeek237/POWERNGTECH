@@ -66,6 +66,15 @@ class Payment(TimeStampedModel):
         blank=True, verbose_name="URL de paiement CinetPay"
     )
 
+    # Monetbil references
+    monetbil_payment_id = models.CharField(
+        max_length=255, blank=True, null=True,
+        verbose_name="Payment ID Monetbil"
+    )
+    monetbil_payment_url = models.URLField(
+        blank=True, verbose_name="URL de paiement Monetbil"
+    )
+
     # What is being paid for (one of these should be set)
     formation = models.ForeignKey(
         "formations.Formation",

@@ -176,30 +176,31 @@ async function handlePayment() {
   processing.value = true;
   try {
     const payload = {
-      content_type: itemType.value,
-      object_id: itemId.value,
-      method: form.method,
+      provider: form.method,
     };
+    if (itemType.value === "formation") {
+      payload.formation_id = Number(itemId.value);
+    } else {
+      payload.order_id = Number(itemId.value);
+    }
+
     if (form.method === 'OM' || form.method === 'MOMO') {
-      payload.phone_number = form.phone_number;
+      payload.phone = form.phone_number;
     }
 
     const { data } = await paiementsApi.initiate(payload);
 
-    if (data.status === 'PENDING') {
-      if (data.payment_url) {
-        // Redirect to external gateway (e.g. CinetPay)
-        window.location.href = data.payment_url;
-      } else {
-        // MoMo / OM pending message
-        uiStore.showSuccess(data.message || "Paiement initié. Veuillez valider sur votre téléphone.");
-        router.push({ name: "payment-return", params: { reference: data.reference } });
-      }
+    if (data.payment_url) {
+      // Direct redirect to Monetbil or CinetPay payment widget
+      window.location.href = data.payment_url;
+    } else if (data.reference) {
+      uiStore.showSuccess(data.message || "Paiement initié. Redirection...");
+      router.push({ name: "payment-return", params: { reference: data.reference } });
     } else {
       uiStore.showError("Erreur lors de l'initiation du paiement.");
     }
   } catch (err) {
-    uiStore.showError(err.response?.data?.error || "Une erreur est survenue.");
+    uiStore.showError(err.response?.data?.error || "Une erreur est survenue lors de l'initialisation du paiement.");
   } finally {
     processing.value = false;
   }
