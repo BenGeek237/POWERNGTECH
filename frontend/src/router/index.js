@@ -34,16 +34,7 @@ const router = createRouter({
       component: () => import("@/views/FormationDetailView.vue"),
       meta: { title: "Détail Formation — POWER NG TECHNOLOGIE" },
     },
-    {
-      path: "/formations/:slug/apprendre",
-      name: "course-player",
-      component: () => import("@/views/CoursePlayerView.vue"),
-      meta: {
-        title: "Lecteur — POWER NG TECHNOLOGIE",
-        requiresAuth: true,
-        requiresEnrollment: true,
-      },
-    },
+
     {
       path: "/formation-personnalisee",
       name: "custom-training",
@@ -150,8 +141,14 @@ const router = createRouter({
     },
 
     // ---------------------------------------------------------------------------
-    // Payment callback
+    // Payment callback & checkout
     // ---------------------------------------------------------------------------
+    {
+      path: "/paiement",
+      name: "paiement",
+      component: () => import("@/views/PaiementView.vue"),
+      meta: { requiresAuth: true, title: "Paiement — POWER NG TECHNOLOGIE" },
+    },
     {
       path: "/paiement/retour/:reference",
       name: "payment-return",

@@ -31,16 +31,33 @@
           <input id="reg-email" v-model="form.email" type="email" class="form-input" :class="{'is-error':errors.email}" placeholder="vous@exemple.com" required />
           <span v-if="errors.email" class="form-error">{{ errors.email }}</span>
         </div>
+
         <div class="form-row">
           <div class="form-group">
-            <label for="phone" class="form-label">Téléphone</label>
-            <input id="phone" v-model="form.phone" type="tel" class="form-input" placeholder="+237 6XX..." />
+            <label for="country" class="form-label">Pays</label>
+            <select id="country" v-model="form.country" class="form-select" @change="onCountryChange">
+              <optgroup label="Afrique">
+                <option v-for="c in africanCountries" :key="c.code" :value="c.code">{{ c.name }}</option>
+              </optgroup>
+              <optgroup label="Autres">
+                <option v-for="c in otherCountries" :key="c.code" :value="c.code">{{ c.name }}</option>
+              </optgroup>
+            </select>
           </div>
           <div class="form-group">
             <label for="city" class="form-label">Ville</label>
             <input id="city" v-model="form.city" type="text" class="form-input" placeholder="Douala..." />
           </div>
         </div>
+
+        <div class="form-group">
+          <label for="phone" class="form-label">Téléphone</label>
+          <div class="phone-input-wrapper">
+            <span class="phone-prefix">{{ phonePrefix }}</span>
+            <input id="phone" v-model="rawPhone" type="tel" class="form-input phone-input" placeholder="6XX XXX XXX" />
+          </div>
+        </div>
+
         <div class="form-group">
           <label for="reg-password" class="form-label">Mot de passe</label>
           <input id="reg-password" v-model="form.password" type="password" class="form-input" :class="{'is-error':errors.password}" placeholder="Min. 8 caractères" required />
@@ -64,17 +81,34 @@
 </template>
 
 <script setup>
-import { reactive } from "vue";
+import { reactive, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
+import { africanCountries, otherCountries, getPrefixByCountryCode } from "@/utils/countries";
 
 const authStore = useAuthStore();
 const uiStore = useUiStore();
 const router = useRouter();
 
-const form = reactive({ first_name:"", last_name:"", email:"", phone:"", city:"", password:"", password_confirm:"" });
+const form = reactive({ first_name:"", last_name:"", email:"", phone:"", country:"CM", city:"", password:"", password_confirm:"" });
 const errors = reactive({ first_name:"", last_name:"", email:"", password:"", password_confirm:"" });
+
+const phonePrefix = ref("+237");
+const rawPhone = ref("");
+
+function onCountryChange() {
+  phonePrefix.value = getPrefixByCountryCode(form.country);
+}
+
+// Update form.phone combining prefix and raw number
+watch([phonePrefix, rawPhone], () => {
+  if (rawPhone.value.trim()) {
+    form.phone = `${phonePrefix.value} ${rawPhone.value}`.trim();
+  } else {
+    form.phone = "";
+  }
+});
 
 function validate() {
   Object.keys(errors).forEach(k => errors[k] = "");
@@ -98,16 +132,31 @@ async function handleRegister() {
 </script>
 
 <style scoped>
-/* Shared with LoginView */
-.auth-page { min-height:100vh; background:linear-gradient(135deg,var(--color-primary-dark),var(--color-primary)); display:flex; align-items:center; justify-content:center; padding:2rem 1rem; }
-.auth-card { background:#fff; border-radius:var(--radius-xl); padding:2.5rem; width:100%; max-width:520px; box-shadow:var(--shadow-xl); }
-.auth-header { text-align:center; margin-bottom:1.75rem; }
-.auth-logo { display:inline-flex; align-items:center; justify-content:center; margin-bottom:1.5rem; text-decoration:none; }
-.logo-image { height:60px; width:auto; object-fit:contain; background:white; border-radius:8px; padding:4px; }
-.auth-title { font-size:1.6rem; font-weight:800; color:var(--color-primary-dark); margin-bottom:0.4rem; }
-.auth-subtitle { color:var(--color-neutral-600); font-size:0.9rem; }
-.auth-form { display:flex; flex-direction:column; gap:1rem; margin-bottom:1.25rem; }
-.form-row { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
-.auth-switch { text-align:center; font-size:0.875rem; color:var(--color-neutral-600); }
-.auth-switch a { color:var(--color-primary); font-weight:600; text-decoration:none; }
+.auth-page { min-height: 80vh; display: flex; align-items: center; justify-content: center; padding: 2rem 1rem; background: var(--color-neutral-50); }
+.auth-card { width: 100%; max-width: 480px; background: #fff; border-radius: var(--radius-lg); padding: 2.5rem; box-shadow: var(--shadow-sm); border: 1px solid var(--color-neutral-200); }
+.auth-header { text-align: center; margin-bottom: 2rem; }
+.auth-logo { display: inline-block; margin-bottom: 1rem; }
+.logo-image { height: 48px; width: auto; }
+.auth-title { font-size: 1.5rem; font-weight: 700; color: var(--color-neutral-900); margin-bottom: 0.5rem; }
+.auth-subtitle { font-size: 0.875rem; color: var(--color-neutral-600); }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.auth-switch { margin-top: 1.5rem; text-align: center; font-size: 0.875rem; color: var(--color-neutral-600); }
+.auth-switch a { color: var(--color-primary); font-weight: 600; text-decoration: none; }
+.auth-switch a:hover { text-decoration: underline; }
+
+.phone-input-wrapper { display: flex; align-items: center; }
+.phone-prefix {
+  background: var(--color-neutral-100);
+  border: 1px solid var(--color-neutral-300);
+  border-right: none;
+  padding: 0.55rem 0.75rem;
+  border-radius: var(--radius-md) 0 0 var(--radius-md);
+  color: var(--color-neutral-700);
+  font-size: 0.875rem;
+  font-weight: 500;
+  height: 42px;
+  display: flex;
+  align-items: center;
+}
+.phone-input { border-radius: 0 var(--radius-md) var(--radius-md) 0; }
 </style>

@@ -1,6 +1,6 @@
 """
 POWER NG TECHNOLOGIE — Demandes Models
-Handles custom training requests from visitors.
+Handles custom training requests and contact messages.
 """
 from django.db import models
 from apps.core.models import TimeStampedModel
@@ -55,3 +55,23 @@ class DemandeFormation(TimeStampedModel):
 
     def __str__(self):
         return f"{self.nom} — {self.domaine} ({self.status})"
+
+
+class ContactMessage(TimeStampedModel):
+    """
+    A general contact message sent from the Contact page.
+    """
+    nom = models.CharField(max_length=150, verbose_name="Nom complet")
+    email = models.EmailField(verbose_name="Adresse email")
+    telephone = models.CharField(max_length=30, blank=True, verbose_name="Téléphone")
+    sujet = models.CharField(max_length=200, verbose_name="Sujet")
+    message = models.TextField(verbose_name="Message")
+    lu = models.BooleanField(default=False, verbose_name="Lu")
+
+    class Meta:
+        verbose_name = "Message de contact"
+        verbose_name_plural = "Messages de contact"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.nom} - {self.sujet}"

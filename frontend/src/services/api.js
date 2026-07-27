@@ -135,6 +135,7 @@ export const servicesApi = {
 
 export const demandesApi = {
   submit: (data) => api.post("/demandes/", data),
+  submitContact: (data) => api.post("/demandes/contact/", data),
 };
 
 export const paiementsApi = {

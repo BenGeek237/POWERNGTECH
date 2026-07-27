@@ -26,6 +26,7 @@ class Payment(TimeStampedModel):
     class Provider(models.TextChoices):
         MTN = "MTN", "MTN MoMo"
         ORANGE = "ORANGE", "Orange Money"
+        CARTE = "CARTE", "Carte Bancaire"
         PAYPAL = "PAYPAL", "PayPal"
 
     user = models.ForeignKey(
@@ -54,6 +55,15 @@ class Payment(TimeStampedModel):
     )
     camerpay_payment_url = models.URLField(
         blank=True, verbose_name="URL de paiement CAMERPAY"
+    )
+
+    # CinetPay references
+    cinetpay_transaction_id = models.CharField(
+        max_length=255, blank=True,
+        verbose_name="Transaction ID CinetPay"
+    )
+    cinetpay_payment_url = models.URLField(
+        blank=True, verbose_name="URL de paiement CinetPay"
     )
 
     # What is being paid for (one of these should be set)

@@ -44,16 +44,23 @@
 import { ref, reactive } from "vue";
 import AppLayout from "@/components/common/AppLayout.vue";
 import { Phone, Mail, MapPin, Clock, CheckCircle } from 'lucide-vue-next';
+import { demandesApi } from "@/services/api";
 const form = reactive({ nom:"", email:"", sujet:"", message:"" });
 const loading = ref(false); const success = ref(false);
 async function handleSubmit() {
   loading.value = true;
-  await new Promise(r => setTimeout(r, 800)); // Simulated — connect to real endpoint
-  success.value = true; loading.value = false;
+  try {
+    await demandesApi.submitContact(form);
+    success.value = true;
+  } catch (err) {
+    // handled by interceptor if global error, or locally
+  } finally {
+    loading.value = false;
+  }
 }
 </script>
 <style scoped>
-.page-header{background:linear-gradient(135deg,var(--color-primary-dark),var(--color-primary));color:#fff;padding:3.5rem 0 2.5rem}
+.page-header{background:var(--color-primary-dark);color:#fff;padding:3.5rem 0 2.5rem}
 .page-title{font-size:clamp(1.75rem,3vw,2.5rem);font-weight:800;color:#fff;margin:.5rem 0}
 .page-subtitle{color:rgba(255,255,255,.75);max-width:600px}
 .contact-layout{display:grid;grid-template-columns:1fr 1.5fr;gap:3rem;align-items:start}

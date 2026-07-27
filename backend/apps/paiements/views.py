@@ -1,6 +1,6 @@
 """
 POWER NG TECHNOLOGIE — Paiements Views
-Handles payment initialization, status checking, and CAMERPAY webhooks.
+Handles payment initialization, status checking, CAMERPAY and CinetPay webhooks.
 """
 import json
 import logging
@@ -13,6 +13,7 @@ from drf_spectacular.utils import extend_schema
 
 from .models import Payment
 from .camerpay import CamerpayService, CamerpayError
+from .cinetpay import CinetPayService, CinetPayError
 from apps.formations.models import Formation, Enrollment
 from apps.boutique.models import Order
 
@@ -28,7 +29,7 @@ class PaymentInitSerializer(serializers.Serializer):
     provider = serializers.ChoiceField(choices=Payment.Provider.choices)
     formation_id = serializers.IntegerField(required=False, allow_null=True)
     order_id = serializers.IntegerField(required=False, allow_null=True)
-    phone = serializers.CharField(required=True, max_length=20)
+    phone = serializers.CharField(required=False, max_length=20, default="")
 
     def validate(self, attrs):
         if not attrs.get("formation_id") and not attrs.get("order_id"):
@@ -48,7 +49,8 @@ class PaymentStatusSerializer(serializers.ModelSerializer):
         model = Payment
         fields = [
             "id", "amount", "status", "provider",
-            "camerpay_reference", "paid_at", "created_at"
+            "camerpay_reference", "cinetpay_transaction_id",
+            "paid_at", "created_at"
         ]
 
 
@@ -60,7 +62,7 @@ class PaymentStatusSerializer(serializers.ModelSerializer):
 class InitiatePaymentView(APIView):
     """
     POST /api/paiements/initier/
-    Initialize a CAMERPAY payment session for a formation or order.
+    Initialize a payment session (CamerPay for MoMo/OM, CinetPay for cards).
     """
     permission_classes = [permissions.IsAuthenticated]
 
@@ -87,7 +89,6 @@ class InitiatePaymentView(APIView):
                     {"error": "Formation introuvable ou gratuite."},
                     status=status.HTTP_404_NOT_FOUND,
                 )
-            # Check if already enrolled
             if Enrollment.objects.filter(user=user, formation=formation, is_active=True).exists():
                 return Response(
                     {"error": "Vous êtes déjà inscrit à cette formation."},
@@ -111,7 +112,66 @@ class InitiatePaymentView(APIView):
             amount = int(order.total_amount)
             description = f"Commande #{order.pk}"
 
-        # Generate reference and create payment record
+        provider = data["provider"]
+
+        # ── CinetPay (Carte Bancaire) ──
+        if provider == Payment.Provider.CARTE:
+            return self._initiate_cinetpay(request, user, amount, description, formation, order)
+
+        # ── CamerPay (MTN MoMo, Orange Money) ──
+        return self._initiate_camerpay(request, user, data, amount, description, formation, order)
+
+    def _initiate_cinetpay(self, request, user, amount, description, formation, order):
+        """Initialize a CinetPay payment session."""
+        transaction_id = CinetPayService.generate_transaction_id()
+        payment = Payment.objects.create(
+            user=user,
+            amount=amount,
+            provider=Payment.Provider.CARTE,
+            cinetpay_transaction_id=transaction_id,
+            formation=formation,
+            order=order,
+            status=Payment.Status.INITIATED,
+        )
+
+        try:
+            return_url = f"{settings.FRONTEND_URL}/paiement/retour/{transaction_id}/"
+            notify_url = f"{request.scheme}://{request.get_host()}/api/paiements/cinetpay-webhook/"
+
+            result = CinetPayService.initialize_payment(
+                amount=amount,
+                currency="XAF",
+                description=description,
+                transaction_id=transaction_id,
+                return_url=return_url,
+                notify_url=notify_url,
+                customer_name=user.get_full_name(),
+                customer_email=user.email,
+                customer_phone=user.phone or "",
+                channels="ALL",
+            )
+
+            payment.cinetpay_payment_url = result.get("payment_url", "")
+            payment.status = Payment.Status.PENDING
+            payment.save(update_fields=["cinetpay_payment_url", "status"])
+
+            return Response(
+                {
+                    "transaction_id": transaction_id,
+                    "payment_url": result.get("payment_url", ""),
+                    "amount": amount,
+                    "payment_id": payment.pk,
+                },
+                status=status.HTTP_201_CREATED,
+            )
+
+        except CinetPayError as e:
+            payment.status = Payment.Status.FAILED
+            payment.save(update_fields=["status"])
+            return Response({"error": str(e)}, status=status.HTTP_502_BAD_GATEWAY)
+
+    def _initiate_camerpay(self, request, user, data, amount, description, formation, order):
+        """Initialize a CamerPay payment session."""
         reference = CamerpayService.generate_reference()
         payment = Payment.objects.create(
             user=user,
@@ -123,22 +183,18 @@ class InitiatePaymentView(APIView):
             status=Payment.Status.INITIATED,
         )
 
-        # Call CAMERPAY API
         try:
-            callback_url = f"{settings.FRONTEND_URL}/paiement/callback/{reference}/"
             return_url = f"{settings.FRONTEND_URL}/paiement/retour/{reference}/"
-
             camerpay_response = CamerpayService.initialize_payment(
                 amount=amount,
                 description=description,
                 customer_email=user.email,
-                customer_phone=data["phone"],
+                customer_phone=data.get("phone", user.phone or ""),
                 reference=reference,
                 callback_url=f"{request.scheme}://{request.get_host()}/api/paiements/webhook/",
                 return_url=return_url,
             )
 
-            # Update with payment URL
             payment_url = camerpay_response.get("payment_url", "")
             payment.camerpay_payment_url = payment_url
             payment.status = Payment.Status.PENDING
@@ -157,30 +213,53 @@ class InitiatePaymentView(APIView):
         except CamerpayError as e:
             payment.status = Payment.Status.FAILED
             payment.save(update_fields=["status"])
-            return Response(
-                {"error": str(e)},
-                status=status.HTTP_502_BAD_GATEWAY,
-            )
+            return Response({"error": str(e)}, status=status.HTTP_502_BAD_GATEWAY)
 
 
 @extend_schema(tags=["Paiements"])
 class PaymentStatusView(APIView):
     """
     GET /api/paiements/statut/{reference}/
-    Poll payment status (used by frontend after redirect).
+    Poll payment status.
     """
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, reference: str):
-        try:
-            payment = Payment.objects.get(
-                camerpay_reference=reference,
-                user=request.user,
-            )
-        except Payment.DoesNotExist:
+        from django.db.models import Q
+
+        payment = Payment.objects.filter(
+            user=request.user,
+        ).filter(
+            Q(camerpay_reference=reference) | Q(cinetpay_transaction_id=reference)
+        ).first()
+
+        if not payment:
             return Response({"error": "Paiement introuvable."}, status=status.HTTP_404_NOT_FOUND)
 
         return Response(PaymentStatusSerializer(payment).data)
+
+
+def _activate_payment(payment):
+    """Shared logic: activate enrollment or validate order after successful payment."""
+    payment.status = Payment.Status.SUCCESS
+    payment.paid_at = timezone.now()
+    payment.save(update_fields=["status", "paid_at"])
+
+    if payment.formation:
+        Enrollment.objects.get_or_create(
+            user=payment.user,
+            formation=payment.formation,
+            defaults={"is_active": True},
+        )
+        logger.info(
+            f"Enrollment activated: user={payment.user.email}, "
+            f"formation={payment.formation.title}"
+        )
+
+    if payment.order:
+        payment.order.status = Order.Status.PAID
+        payment.order.save(update_fields=["status"])
+        logger.info(f"Order #{payment.order.pk} marked as PAID.")
 
 
 @extend_schema(tags=["Paiements"])
@@ -188,13 +267,11 @@ class CamerpayWebhookView(APIView):
     """
     POST /api/paiements/webhook/
     Receives CAMERPAY webhook notifications.
-    Verifies signature, updates payment status, and activates access.
     """
     permission_classes = [permissions.AllowAny]
     authentication_classes = []
 
     def post(self, request):
-        # Verify webhook signature
         signature = request.headers.get("X-Camerpay-Signature", "")
         raw_body = request.body
 
@@ -216,38 +293,59 @@ class CamerpayWebhookView(APIView):
             payment = Payment.objects.get(camerpay_reference=reference)
         except Payment.DoesNotExist:
             logger.error(f"Payment not found for reference: {reference}")
-            return Response(status=status.HTTP_200_OK)  # Always 200 to avoid CAMERPAY retries
+            return Response(status=status.HTTP_200_OK)
 
         if webhook_status == "SUCCESS":
-            payment.status = Payment.Status.SUCCESS
-            payment.paid_at = timezone.now()
-            payment.save(update_fields=["status", "paid_at"])
-
-            # Activate formation enrollment
-            if payment.formation:
-                Enrollment.objects.get_or_create(
-                    user=payment.user,
-                    formation=payment.formation,
-                    defaults={"is_active": True},
-                )
-                logger.info(
-                    f"Enrollment activated: user={payment.user.email}, "
-                    f"formation={payment.formation.title}"
-                )
-
-            # Validate order
-            if payment.order:
-                payment.order.status = Order.Status.PAID
-                payment.order.save(update_fields=["status"])
-                logger.info(f"Order #{payment.order.pk} marked as PAID.")
-
+            _activate_payment(payment)
         elif webhook_status in ("FAILED", "CANCELLED"):
             payment.status = (
-                Payment.Status.FAILED
-                if webhook_status == "FAILED"
+                Payment.Status.FAILED if webhook_status == "FAILED"
                 else Payment.Status.CANCELLED
             )
             payment.save(update_fields=["status"])
+
+        return Response({"message": "Webhook reçu."}, status=status.HTTP_200_OK)
+
+
+@extend_schema(tags=["Paiements"])
+class CinetPayWebhookView(APIView):
+    """
+    POST /api/paiements/cinetpay-webhook/
+    Receives CinetPay webhook notifications (IPN).
+    """
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
+
+    def post(self, request):
+        data = request.data
+        transaction_id = data.get("cpm_trans_id", "")
+
+        logger.info(f"CinetPay webhook received: txn={transaction_id}")
+
+        if not transaction_id:
+            return Response(status=status.HTTP_200_OK)
+
+        try:
+            payment = Payment.objects.get(cinetpay_transaction_id=transaction_id)
+        except Payment.DoesNotExist:
+            logger.error(f"Payment not found for CinetPay txn: {transaction_id}")
+            return Response(status=status.HTTP_200_OK)
+
+        # Verify by checking status with CinetPay API
+        try:
+            status_data = CinetPayService.check_payment_status(transaction_id)
+            cinetpay_status = status_data.get("status", "")
+
+            if cinetpay_status == "ACCEPTED":
+                _activate_payment(payment)
+                logger.info(f"CinetPay payment ACCEPTED: txn={transaction_id}")
+            elif cinetpay_status in ("REFUSED", "CANCELLED"):
+                payment.status = Payment.Status.FAILED
+                payment.save(update_fields=["status"])
+                logger.info(f"CinetPay payment {cinetpay_status}: txn={transaction_id}")
+
+        except CinetPayError as e:
+            logger.error(f"CinetPay verification failed: {e}")
 
         return Response({"message": "Webhook reçu."}, status=status.HTTP_200_OK)
 

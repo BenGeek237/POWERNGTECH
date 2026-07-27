@@ -278,7 +278,7 @@ onMounted(async () => {
 
 /* Custom Training */
 .custom-training-section {
-  background: linear-gradient(135deg, var(--color-primary-dark) 0%, var(--color-primary) 60%, var(--color-primary-500) 100%);
+  background: var(--color-primary-dark);
   color: #fff;
 }
 .custom-training-inner {
@@ -311,11 +311,10 @@ onMounted(async () => {
   flex-direction: column;
   align-items: center;
   gap: 0.4rem;
-  background: rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.05);
   border-radius: 12px;
   padding: 1rem 0.75rem;
-  border: 1px solid rgba(255,255,255,0.15);
-  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255,255,255,0.1);
 }
 .training-icon span { font-size: 1.75rem; }
 .training-icon small { font-size: 0.7rem; color: rgba(255,255,255,0.75); font-weight: 500; }

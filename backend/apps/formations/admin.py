@@ -3,7 +3,7 @@ POWER NG TECHNOLOGIE — Formations Admin
 """
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import Category, Formation, Chapitre, Video, PDF, Enrollment
+from .models import Category, Formation, Enrollment
 
 
 @admin.register(Category)
@@ -13,28 +13,15 @@ class CategoryAdmin(admin.ModelAdmin):
     ordering = ["order", "name"]
 
 
-class ChapitreInline(admin.StackedInline):
-    model = Chapitre
-    extra = 1
-    ordering = ["order"]
-
-
-class PDFInline(admin.TabularInline):
-    model = PDF
-    extra = 1
-    fk_name = "formation"
-
-
 @admin.register(Formation)
 class FormationAdmin(admin.ModelAdmin):
     list_display = [
         "title", "category", "price", "is_free", "level",
-        "status", "is_featured", "chapter_count_display", "video_count_display", "created_at"
+        "status", "is_featured", "has_zip_file", "created_at"
     ]
     list_filter = ["status", "level", "is_free", "is_featured", "category"]
     search_fields = ["title", "description"]
     prepopulated_fields = {"slug": ("title",)}
-    inlines = [ChapitreInline, PDFInline]
     readonly_fields = ["created_at", "updated_at", "cover_preview"]
     actions = ["publish_formations", "unpublish_formations"]
     list_per_page = 20
@@ -45,6 +32,9 @@ class FormationAdmin(admin.ModelAdmin):
         }),
         ("Contenu pédagogique", {
             "fields": ("objectives", "prerequisites", "level", "duration_hours")
+        }),
+        ("Fichiers de la formation", {
+            "fields": ("zip_file", "intro_video", "intro_video_url")
         }),
         ("Tarification", {
             "fields": ("price", "is_free")
@@ -64,13 +54,10 @@ class FormationAdmin(admin.ModelAdmin):
         return "Aucune image"
     cover_preview.short_description = "Aperçu"
 
-    def chapter_count_display(self, obj):
-        return obj.chapter_count
-    chapter_count_display.short_description = "Chapitres"
-
-    def video_count_display(self, obj):
-        return obj.video_count
-    video_count_display.short_description = "Vidéos"
+    def has_zip_file(self, obj):
+        return bool(obj.zip_file)
+    has_zip_file.short_description = "Fichier ZIP"
+    has_zip_file.boolean = True
 
     @admin.action(description="Publier les formations sélectionnées")
     def publish_formations(self, request, queryset):
@@ -81,19 +68,6 @@ class FormationAdmin(admin.ModelAdmin):
     def unpublish_formations(self, request, queryset):
         updated = queryset.update(status=Formation.Status.DRAFT)
         self.message_user(request, f"{updated} formation(s) mise(s) en brouillon.")
-
-
-class VideoInline(admin.TabularInline):
-    model = Video
-    extra = 1
-    ordering = ["order"]
-
-
-@admin.register(Chapitre)
-class ChapitreAdmin(admin.ModelAdmin):
-    list_display = ["title", "formation", "order"]
-    list_filter = ["formation"]
-    inlines = [VideoInline]
 
 
 @admin.register(Enrollment)

@@ -1,24 +1,22 @@
 """
 POWER NG TECHNOLOGIE — Formations Views
-REST API views for the training catalog, video player, and enrollments.
+REST API views for the training catalog and ZIP downloads.
 """
 import django_filters
 from django.shortcuts import get_object_or_404
+from django.http import FileResponse
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from drf_spectacular.utils import extend_schema, OpenApiParameter
+from drf_spectacular.utils import extend_schema
 
-from .models import Category, Formation, Chapitre, Video, PDF, Enrollment
+from .models import Category, Formation, Enrollment
 from .serializers import (
     CategorySerializer,
     FormationListSerializer,
     FormationDetailSerializer,
-    ChapitreDetailSerializer,
-    VideoDetailSerializer,
     EnrollmentSerializer,
 )
-from .permissions import IsEnrolled
 
 
 # ---------------------------------------------------------------------------
@@ -49,7 +47,7 @@ class CategoryListView(generics.ListAPIView):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
     permission_classes = [permissions.AllowAny]
-    pagination_class = None  # Return all categories without pagination
+    pagination_class = None
 
 
 # ---------------------------------------------------------------------------
@@ -72,7 +70,7 @@ class FormationListView(generics.ListAPIView):
     def get_queryset(self):
         return Formation.objects.filter(
             status=Formation.Status.PUBLISHED
-        ).select_related("category").prefetch_related("chapters__videos")
+        ).select_related("category")
 
 
 @extend_schema(tags=["Formations"])
@@ -88,9 +86,7 @@ class FormationDetailView(generics.RetrieveAPIView):
     def get_queryset(self):
         return Formation.objects.filter(
             status=Formation.Status.PUBLISHED
-        ).select_related("category").prefetch_related(
-            "chapters__videos", "chapters__pdfs", "pdfs"
-        )
+        ).select_related("category")
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
@@ -114,49 +110,45 @@ class LatestFormationsView(generics.ListAPIView):
 
 
 # ---------------------------------------------------------------------------
-# Protected content views (requires enrollment)
+# ZIP Download (requires enrollment)
 # ---------------------------------------------------------------------------
 
-@extend_schema(tags=["Formations — Lecteur"])
-class ChapitreDetailView(generics.RetrieveAPIView):
+@extend_schema(tags=["Formations"])
+class DownloadFormationZipView(APIView):
     """
-    GET /api/formations/{slug}/chapitres/{chapitre_id}/
-    Returns full chapter with videos and PDFs.
+    GET /api/formations/{slug}/download/
+    Download the ZIP file for a formation.
     Requires authentication + enrollment (or free formation).
     """
-    serializer_class = ChapitreDetailSerializer
-    permission_classes = [permissions.IsAuthenticated, IsEnrolled]
+    permission_classes = [permissions.IsAuthenticated]
 
-    def get_object(self):
+    def get(self, request, slug):
         formation = get_object_or_404(
-            Formation, slug=self.kwargs["slug"], status=Formation.Status.PUBLISHED
+            Formation, slug=slug, status=Formation.Status.PUBLISHED
         )
-        chapitre = get_object_or_404(
-            Chapitre, id=self.kwargs["chapitre_id"], formation=formation
+
+        if not formation.zip_file:
+            return Response(
+                {"error": "Cette formation n'a pas de fichier téléchargeable."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Check access: free or enrolled
+        if not formation.is_free:
+            is_enrolled = Enrollment.objects.filter(
+                user=request.user, formation=formation, is_active=True
+            ).exists()
+            if not is_enrolled:
+                return Response(
+                    {"error": "Vous devez être inscrit pour télécharger cette formation."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+        return FileResponse(
+            formation.zip_file.open("rb"),
+            as_attachment=True,
+            filename=f"{formation.slug}.zip",
         )
-        self.check_object_permissions(self.request, chapitre)
-        return chapitre
-
-
-@extend_schema(tags=["Formations — Lecteur"])
-class VideoDetailView(generics.RetrieveAPIView):
-    """
-    GET /api/formations/{slug}/videos/{video_id}/
-    Returns video details for the player.
-    Requires authentication + enrollment (unless is_preview).
-    """
-    serializer_class = VideoDetailSerializer
-    permission_classes = [permissions.IsAuthenticated, IsEnrolled]
-
-    def get_object(self):
-        video = get_object_or_404(
-            Video,
-            id=self.kwargs["video_id"],
-            chapter__formation__slug=self.kwargs["slug"],
-            chapter__formation__status=Formation.Status.PUBLISHED,
-        )
-        self.check_object_permissions(self.request, video)
-        return video
 
 
 # ---------------------------------------------------------------------------

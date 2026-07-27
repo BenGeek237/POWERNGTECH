@@ -29,9 +29,8 @@
             <h1 class="formation-title">{{ formation.title }}</h1>
             <p class="formation-description">{{ formation.description }}</p>
             <div class="formation-meta-row">
-              <span style="display:flex;align-items:center;gap:4px;"><Clock :size="16" /> {{ formation.duration_hours }}h</span>
-              <span style="display:flex;align-items:center;gap:4px;"><Video :size="16" /> {{ formation.video_count }} vidéos</span>
-              <span style="display:flex;align-items:center;gap:4px;"><Folder :size="16" /> {{ formation.chapter_count }} chapitres</span>
+              <span style="display:flex;align-items:center;gap:4px;"><Clock :size="16" /> {{ formation.duration_hours }}h estimées</span>
+              <span style="display:flex;align-items:center;gap:4px;"><Folder :size="16" /> Formation téléchargeable</span>
             </div>
           </div>
           <div class="formation-purchase-card card">
@@ -45,29 +44,30 @@
                   <span class="price-main">{{ formatPrice(formation.price) }} FCFA</span>
                 </template>
               </div>
-              <template v-if="formation.is_enrolled">
-                <RouterLink :to="`/formations/${formation.slug}/apprendre`" class="btn btn-secondary btn-lg" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;">
-                  <Play :size="18" fill="currentColor" /> Continuer la formation
-                </RouterLink>
+              <template v-if="formation.is_enrolled || (formation.is_free && authStore.isAuthenticated)">
+                <a v-if="formation.zip_file_url" :href="formation.zip_file_url" class="btn btn-secondary btn-lg" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;" download>
+                  <Download :size="18" fill="none" /> Télécharger la formation (ZIP)
+                </a>
+                <p v-else class="purchase-login-hint">Le fichier de formation n'est pas encore disponible.</p>
               </template>
-              <template v-else-if="formation.is_free">
-                <RouterLink :to="`/formations/${formation.slug}/apprendre`" class="btn btn-primary btn-lg" style="width:100%">
-                  Commencer gratuitement
+              <template v-else-if="formation.is_free && !authStore.isAuthenticated">
+                <RouterLink :to="{ name: 'login', query: { redirect: route.fullPath } }" class="btn btn-primary btn-lg" style="width:100%">
+                  Connectez-vous pour télécharger
                 </RouterLink>
               </template>
               <template v-else>
-                <button @click="initiatePayment" class="btn btn-primary btn-lg" style="width:100%" :disabled="!authStore.isAuthenticated">
+                <RouterLink :to="{ name: 'paiement', query: { type: 'formation', id: formation.id, slug: formation.slug } }" class="btn btn-primary btn-lg" style="width:100%" v-if="authStore.isAuthenticated">
                   Acheter cette formation
-                </button>
-                <p v-if="!authStore.isAuthenticated" class="purchase-login-hint">
-                  <RouterLink to="/auth/connexion">Connectez-vous</RouterLink> pour acheter.
-                </p>
+                </RouterLink>
+                <RouterLink :to="{ name: 'login', query: { redirect: route.fullPath } }" class="btn btn-primary btn-lg" style="width:100%" v-else>
+                  Connectez-vous pour acheter
+                </RouterLink>
               </template>
               <ul class="purchase-features">
-                <li><CheckCircle2 :size="16" class="text-secondary-dark" /> Accès à vie</li>
-                <li><CheckCircle2 :size="16" class="text-secondary-dark" /> {{ formation.video_count }} vidéos HD</li>
-                <li><CheckCircle2 :size="16" class="text-secondary-dark" /> {{ formation.pdfs?.length || 0 }} PDF téléchargeables</li>
-                <li><CheckCircle2 :size="16" class="text-secondary-dark" /> Certificat de completion</li>
+                <li><CheckCircle2 :size="16" class="text-secondary-dark" /> Accès à vie aux fichiers</li>
+                <li><CheckCircle2 :size="16" class="text-secondary-dark" /> Téléchargement immédiat</li>
+                <li><CheckCircle2 :size="16" class="text-secondary-dark" /> Apprentissage hors-ligne</li>
+                <li><CheckCircle2 :size="16" class="text-secondary-dark" /> Support technique inclus</li>
               </ul>
             </div>
           </div>
@@ -78,6 +78,15 @@
       <section class="section">
         <div class="container formation-content-grid">
           <div class="formation-main">
+            <!-- Intro Video -->
+            <div v-if="formation.has_intro_video" class="content-block">
+              <h2 class="content-block-title" style="display:flex;align-items:center;gap:8px;"><Video :size="24" class="text-primary" /> Présentation</h2>
+              <div class="intro-video-wrapper">
+                <video v-if="formation.intro_video" :src="formation.intro_video" controls class="intro-video-player"></video>
+                <iframe v-else-if="formation.intro_video_url" :src="formation.intro_video_url" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen class="intro-video-player"></iframe>
+              </div>
+            </div>
+
             <!-- Objectives -->
             <div v-if="formation.objectives" class="content-block">
               <h2 class="content-block-title" style="display:flex;align-items:center;gap:8px;"><Target :size="24" class="text-primary" /> Objectifs</h2>
@@ -93,30 +102,6 @@
                 <li v-for="req in prerequisitesList" :key="req">{{ req }}</li>
               </ul>
             </div>
-
-            <!-- Programme -->
-            <div class="content-block">
-              <h2 class="content-block-title" style="display:flex;align-items:center;gap:8px;"><BookOpen :size="24" class="text-primary" /> Programme</h2>
-              <div class="chapters-list">
-                <div v-for="chapter in formation.chapters" :key="chapter.id" class="chapter-item">
-                  <div class="chapter-header">
-                    <div class="chapter-info">
-                      <Folder :size="18" class="text-neutral-500" />
-                      <strong>{{ chapter.title }}</strong>
-                    </div>
-                    <span class="chapter-count">{{ chapter.video_count }} vidéo{{ chapter.video_count !== 1 ? 's' : '' }}</span>
-                  </div>
-                  <ul v-if="chapter.videos?.length" class="chapter-videos">
-                    <li v-for="video in chapter.videos" :key="video.id" class="chapter-video-item">
-                      <Unlock v-if="video.is_preview" :size="16" class="text-secondary-dark" />
-                      <Lock v-else :size="16" class="text-neutral-400" />
-                      <span>{{ video.title }}</span>
-                      <span class="video-duration">{{ video.duration_minutes }}min</span>
-                    </li>
-                  </ul>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </section>
@@ -130,7 +115,7 @@ import { useRoute, useRouter } from "vue-router";
 import AppLayout from "@/components/common/AppLayout.vue";
 import { formationsApi } from "@/services/api";
 import { useAuthStore } from "@/stores/auth";
-import { Frown, Clock, Video, Folder, Play, CheckCircle2, Target, ClipboardList, BookOpen, Unlock, Lock } from 'lucide-vue-next';
+import { Frown, Clock, Video, Folder, Download, CheckCircle2, Target, ClipboardList } from 'lucide-vue-next';
 
 const route = useRoute();
 const router = useRouter();
@@ -146,12 +131,6 @@ const prerequisitesList = computed(() => formation.value?.prerequisites?.split("
 
 function formatPrice(price) { return new Intl.NumberFormat("fr-FR").format(price); }
 
-async function initiatePayment() {
-  if (!authStore.isAuthenticated) { router.push({ name: "login", query: { redirect: route.fullPath } }); return; }
-  // Navigate to formation player first for free, or payment flow for paid
-  router.push(`/formations/${route.params.slug}/apprendre`);
-}
-
 onMounted(async () => {
   try {
     const { data } = await formationsApi.getDetail(route.params.slug);
@@ -163,7 +142,7 @@ onMounted(async () => {
 
 <style scoped>
 .page-loading { min-height: 60vh; display: flex; align-items: center; justify-content: center; }
-.formation-header { background: linear-gradient(135deg, var(--color-primary-dark), var(--color-primary)); color: #fff; padding: 3rem 0 5rem; }
+.formation-header { background: var(--color-primary-dark); color: #fff; padding: 3rem 0 5rem; }
 .formation-header-inner { display: grid; grid-template-columns: 1fr 360px; gap: 3rem; align-items: start; }
 .header-badges { display: flex; gap: .5rem; margin-bottom: 1rem; flex-wrap: wrap; }
 .formation-title { font-size: clamp(1.5rem, 3vw, 2.2rem); font-weight: 800; color: #fff; margin-bottom: 1rem; }
@@ -182,12 +161,7 @@ onMounted(async () => {
 .objectives-list { list-style: none; display: flex; flex-direction: column; gap: .6rem; }
 .objectives-list li { display: flex; align-items: flex-start; gap: .5rem; font-size: .9rem; line-height: 1.55; }
 .objectives-list li::before { content: "✓"; color: var(--color-secondary-dark); font-weight: 700; flex-shrink: 0; }
-.chapter-item { border: 1px solid var(--color-neutral-200); border-radius: var(--radius-md); overflow: hidden; margin-bottom: .75rem; }
-.chapter-header { display: flex; justify-content: space-between; align-items: center; padding: .9rem 1.1rem; background: var(--color-neutral-50); }
-.chapter-info { display: flex; align-items: center; gap: .5rem; font-weight: 600; font-size: .9rem; }
-.chapter-count { font-size: .78rem; color: var(--color-neutral-600); }
-.chapter-videos { list-style: none; }
-.chapter-video-item { display: flex; align-items: center; gap: .5rem; padding: .6rem 1.1rem; font-size: .875rem; color: var(--color-neutral-700); border-top: 1px solid var(--color-neutral-100); }
-.video-duration { margin-left: auto; font-size: .75rem; color: var(--color-neutral-500); }
+.intro-video-wrapper { position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: var(--radius-lg); background: #000; }
+.intro-video-player { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
 @media (max-width: 900px) { .formation-header-inner { grid-template-columns: 1fr; } .formation-purchase-card { order: -1; } }
 </style>

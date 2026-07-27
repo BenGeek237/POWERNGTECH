@@ -5,7 +5,7 @@ Core models for the training platform: categories, courses, chapters, videos, PD
 from django.db import models
 from django.contrib.auth import get_user_model
 from apps.core.models import TimeStampedModel
-from apps.core.utils import upload_to, validate_image_file, validate_video_file, validate_pdf_file, compress_image
+from apps.core.utils import upload_to, validate_image_file, validate_video_file, validate_pdf_file, validate_zip_file, compress_image
 
 User = get_user_model()
 
@@ -35,7 +35,7 @@ class Category(TimeStampedModel):
 class Formation(TimeStampedModel):
     """
     Main training model.
-    A formation can be free or paid, and contains chapters with videos and PDFs.
+    A formation is a downloadable ZIP file with an optional intro video.
     """
 
     class Level(models.TextChoices):
@@ -88,6 +88,28 @@ class Formation(TimeStampedModel):
         default=Status.DRAFT, verbose_name="Statut"
     )
     is_featured = models.BooleanField(default=False, verbose_name="Mise en avant")
+
+    # ── ZIP content (main downloadable file) ──
+    zip_file = models.FileField(
+        upload_to=upload_to("formations/zips"),
+        blank=True, null=True,
+        verbose_name="Fichier ZIP de la formation",
+        validators=[validate_zip_file],
+        help_text="Contenu principal de la formation au format ZIP (max 500 Mo)."
+    )
+
+    # ── Optional intro video ──
+    intro_video = models.FileField(
+        upload_to=upload_to("formations/intros"),
+        blank=True, null=True,
+        verbose_name="Vidéo d'introduction",
+        validators=[validate_video_file],
+        help_text="Vidéo de présentation visible par tous (optionnelle)."
+    )
+    intro_video_url = models.URLField(
+        blank=True, verbose_name="URL vidéo d'introduction",
+        help_text="Alternative YouTube/Vimeo (si pas de fichier vidéo)."
+    )
 
     class Meta:
         verbose_name = "Formation"

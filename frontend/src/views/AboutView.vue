@@ -6,7 +6,7 @@
         <p class="page-label">À propos</p>
         <h1 class="page-title">POWER NG TECHNOLOGIE</h1>
         <p class="page-desc">
-          Votre partenaire technologique basé à Ngaoundéré, Cameroun.
+          Votre partenaire technologique basé à Ngaoundéré, rayonnant en Afrique et dans le monde.
           Formation professionnelle et équipements de qualité depuis 2019.
         </p>
       </div>
@@ -19,9 +19,9 @@
           <div>
             <h2 class="h2">Notre mission</h2>
             <p class="text">
-              Contribuer au développement technologique du Cameroun en formant
+              Contribuer au développement technologique en formant
               des professionnels qualifiés et en fournissant des équipements
-              de qualité adaptés aux réalités locales.
+              de qualité adaptés aux réalités du terrain.
             </p>
             <p class="text">
               Face à l'essor des énergies renouvelables et à la demande croissante
@@ -32,13 +32,13 @@
           <div>
             <h2 class="h2">Notre vision</h2>
             <p class="text">
-              Devenir le centre de référence en formation technologique en Afrique
-              centrale, en démocratisant l'accès aux compétences en énergie
+              Devenir le centre de référence en formation technologique
+              en démocratisant l'accès aux compétences en énergie
               renouvelable et en électronique industrielle.
             </p>
             <p class="text">
               Nous croyons que chaque technicien formé est un pas vers
-              l'autonomie énergétique du Cameroun.
+              l'autonomie énergétique.
             </p>
           </div>
         </div>

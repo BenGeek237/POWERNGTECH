@@ -77,6 +77,9 @@ ALLOWED_PDF_TYPES = ["application/pdf"]
 MAX_IMAGE_SIZE_MB = 10
 MAX_VIDEO_SIZE_MB = 500
 MAX_PDF_SIZE_MB = 50
+MAX_ZIP_SIZE_MB = 500
+
+ALLOWED_ZIP_TYPES = ["application/zip", "application/x-zip-compressed", "application/x-zip"]
 
 
 def validate_image_file(file):
@@ -110,6 +113,18 @@ def validate_pdf_file(file):
     if file.size > MAX_PDF_SIZE_MB * 1024 * 1024:
         raise ValidationError(
             f"Le PDF ne peut pas dépasser {MAX_PDF_SIZE_MB} Mo."
+        )
+
+
+def validate_zip_file(file):
+    """Validate that an uploaded file is a valid ZIP under size limit."""
+    if file.content_type not in ALLOWED_ZIP_TYPES:
+        raise ValidationError(
+            "Type de fichier non accepté. Seuls les fichiers ZIP sont acceptés."
+        )
+    if file.size > MAX_ZIP_SIZE_MB * 1024 * 1024:
+        raise ValidationError(
+            f"Le fichier ZIP ne peut pas dépasser {MAX_ZIP_SIZE_MB} Mo."
         )
 
 

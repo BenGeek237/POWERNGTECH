@@ -39,7 +39,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             "email", "first_name", "last_name",
-            "phone", "city", "password", "password_confirm"
+            "phone", "country", "city", "password", "password_confirm"
         ]
         extra_kwargs = {
             "first_name": {"required": True},
@@ -71,7 +71,7 @@ class UserDetailSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             "id", "email", "first_name", "last_name", "full_name",
-            "phone", "city", "avatar", "is_active", "created_at",
+            "phone", "country", "city", "avatar", "is_active", "created_at",
         ]
         read_only_fields = ["id", "email", "is_active", "created_at"]
 
@@ -81,7 +81,7 @@ class UserProfileUpdateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ["first_name", "last_name", "phone", "city", "avatar"]
+        fields = ["first_name", "last_name", "phone", "country", "city", "avatar"]
 
 
 class ChangePasswordSerializer(serializers.Serializer):

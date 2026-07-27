@@ -9,19 +9,19 @@
    CSS Custom Properties (Design Tokens)
    ============================================================ */
 :root {
-  /* Brand Colors */
-  --color-primary-50:   #EFF6FF;
-  --color-primary-100:  #DBEAFE;
-  --color-primary-200:  #BFDBFE;
-  --color-primary-500:  #2D5A9B;
-  --color-primary:      #1E3A5F;
-  --color-primary-dark: #0F1E3A;
+  /* Brand Colors (Green & Amber for Energy) */
+  --color-primary-50:   #F0FDF4;
+  --color-primary-100:  #DCFCE7;
+  --color-primary-200:  #BBF7D0;
+  --color-primary-500:  #22C55E;
+  --color-primary:      #16A34A;
+  --color-primary-dark: #14532D;
 
-  --color-secondary-50:  #F0FDF4;
-  --color-secondary-100: #DCFCE7;
-  --color-secondary-500: #4CAF50;
-  --color-secondary:     #2E7D32;
-  --color-secondary-dark:#1B5E20;
+  --color-secondary-50:  #FFFBEB;
+  --color-secondary-100: #FEF3C7;
+  --color-secondary-500: #F59E0B;
+  --color-secondary:     #D97706;
+  --color-secondary-dark:#B45309;
 
   /* Neutral Palette */
   --color-neutral-50:  #F8F9FA;

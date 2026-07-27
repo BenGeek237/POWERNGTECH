@@ -53,6 +53,10 @@ class CustomUser(AbstractBaseUser, PermissionsMixin, TimeStampedModel):
         help_text="Format: +237 6XX XXX XXX"
     )
     city = models.CharField(max_length=100, blank=True, verbose_name="Ville")
+    country = models.CharField(
+        max_length=2, default="CM", verbose_name="Pays",
+        help_text="Code ISO 2 lettres (ex: CM, CI, FR, SN)"
+    )
     avatar = models.ImageField(
         upload_to=upload_to("accounts/avatars"),
         blank=True,

@@ -47,20 +47,38 @@
                 <span v-if="errors.nom" class="form-error">{{ errors.nom }}</span>
               </div>
               <div class="form-group">
-                <label for="cf-tel" class="form-label">Téléphone *</label>
-                <input id="cf-tel" v-model="form.telephone" type="tel" class="form-input" :class="{'is-error':errors.telephone}" placeholder="+237 6XX..." />
-                <span v-if="errors.telephone" class="form-error">{{ errors.telephone }}</span>
-              </div>
-              <div class="form-group">
                 <label for="cf-email" class="form-label">Email *</label>
                 <input id="cf-email" v-model="form.email" type="email" class="form-input" :class="{'is-error':errors.email}" placeholder="vous@exemple.com" />
                 <span v-if="errors.email" class="form-error">{{ errors.email }}</span>
               </div>
+              
+              <div class="form-group">
+                <label for="country" class="form-label">Pays</label>
+                <select id="country" v-model="form.country" class="form-select" @change="onCountryChange">
+                  <optgroup label="Afrique">
+                    <option v-for="c in africanCountries" :key="c.code" :value="c.code">{{ c.name }}</option>
+                  </optgroup>
+                  <optgroup label="Autres">
+                    <option v-for="c in otherCountries" :key="c.code" :value="c.code">{{ c.name }}</option>
+                  </optgroup>
+                </select>
+              </div>
+              
               <div class="form-group">
                 <label for="cf-ville" class="form-label">Ville *</label>
                 <input id="cf-ville" v-model="form.ville" type="text" class="form-input" :class="{'is-error':errors.ville}" placeholder="Douala, Yaoundé..." />
                 <span v-if="errors.ville" class="form-error">{{ errors.ville }}</span>
               </div>
+
+              <div class="form-group">
+                <label for="cf-tel" class="form-label">Téléphone *</label>
+                <div class="phone-input-wrapper" :class="{'is-error':errors.telephone}">
+                  <span class="phone-prefix">{{ phonePrefix }}</span>
+                  <input id="cf-tel" v-model="rawPhone" type="tel" class="form-input phone-input" placeholder="6XX XXX XXX" />
+                </div>
+                <span v-if="errors.telephone" class="form-error">{{ errors.telephone }}</span>
+              </div>
+
             </div>
             <div class="form-group">
               <label for="cf-domaine" class="form-label">Domaine souhaité *</label>
@@ -94,71 +112,137 @@
 </template>
 
 <script setup>
-import { ref, reactive } from "vue";
+import { ref, reactive, watch } from "vue";
 import AppLayout from "@/components/common/AppLayout.vue";
 import { demandesApi } from "@/services/api";
+import { Target, Users, BookOpen, Phone, CheckCircle } from "lucide-vue-next";
+import { africanCountries, otherCountries, getPrefixByCountryCode } from "@/utils/countries";
+
+const infoPoints = [
+  { icon: Target, title: "Contenu sur mesure", desc: "Le programme est adapté à vos objectifs spécifiques et à votre niveau." },
+  { icon: Users, title: "Formateurs experts", desc: "Des professionnels du terrain vous accompagnent tout au long de la formation." },
+  { icon: BookOpen, title: "Pratique avant tout", desc: "Mise en situation réelle avec du matériel professionnel." },
+];
+
+const form = reactive({
+  nom: "",
+  email: "",
+  telephone: "",
+  ville: "",
+  domaine: "",
+  niveau: "DEBUTANT",
+  message: "",
+  country: "CM"
+});
+
+const errors = reactive({
+  nom: "", email: "", telephone: "", ville: "", domaine: "", message: "",
+});
 
 const loading = ref(false);
 const success = ref(false);
 const sentName = ref("");
-const form = reactive({ nom:"", telephone:"", email:"", ville:"", domaine:"", niveau:"DEBUTANT", message:"" });
-const errors = reactive({ nom:"", telephone:"", email:"", ville:"", domaine:"", message:"" });
 
-import { Target, Users, Calendar, Trophy, Phone, CheckCircle } from 'lucide-vue-next';
+const phonePrefix = ref("+237");
+const rawPhone = ref("");
 
-const infoPoints = [
-  { icon:Target, title:"Programme sur mesure", desc:"Formation adaptée à vos objectifs spécifiques et votre rythme d'apprentissage." },
-  { icon:Users, title:"Groupe ou individuel", desc:"Que vous soyez seul ou en équipe, nous adaptons le format à vos besoins." },
-  { icon:Calendar, title:"Horaires flexibles", desc:"Choisissez les horaires qui correspondent à votre emploi du temps." },
-  { icon:Trophy, title:"Résultats garantis", desc:"Nos formations pratiques assurent une montée en compétences réelle et rapide." },
-];
+function onCountryChange() {
+  phonePrefix.value = getPrefixByCountryCode(form.country);
+}
+
+watch([phonePrefix, rawPhone], () => {
+  if (rawPhone.value.trim()) {
+    form.telephone = `${phonePrefix.value} ${rawPhone.value}`.trim();
+  } else {
+    form.telephone = "";
+  }
+});
 
 function validate() {
   Object.keys(errors).forEach(k => errors[k] = "");
-  let v = true;
-  if (!form.nom.trim())      { errors.nom = "Requis"; v = false; }
-  if (!form.telephone.trim()){ errors.telephone = "Requis"; v = false; }
-  if (!form.email || !/\S+@\S+\.\S+/.test(form.email)){ errors.email = "Email invalide"; v = false; }
-  if (!form.ville.trim())    { errors.ville = "Requis"; v = false; }
-  if (!form.domaine.trim())  { errors.domaine = "Requis"; v = false; }
-  if (!form.message.trim())  { errors.message = "Requis"; v = false; }
-  return v;
+  let valid = true;
+  if (!form.nom.trim()) { errors.nom = "Ce champ est requis"; valid = false; }
+  if (!form.email || !/\S+@\S+\.\S+/.test(form.email)) { errors.email = "Email invalide"; valid = false; }
+  if (!form.telephone.trim()) { errors.telephone = "Ce champ est requis"; valid = false; }
+  if (!form.ville.trim()) { errors.ville = "Ce champ est requis"; valid = false; }
+  if (!form.domaine.trim()) { errors.domaine = "Ce champ est requis"; valid = false; }
+  if (!form.message.trim()) { errors.message = "Ce champ est requis"; valid = false; }
+  return valid;
 }
 
 async function handleSubmit() {
   if (!validate()) return;
   loading.value = true;
   try {
-    await demandesApi.submit(form);
+    await demandesApi.createDemandeFormation(form);
     sentName.value = form.nom;
     success.value = true;
-  } finally { loading.value = false; }
+  } catch (err) {
+    // handled by interceptor or local error handling
+  } finally {
+    loading.value = false;
+  }
 }
 
 function resetForm() {
-  Object.keys(form).forEach(k => form[k] = k === "niveau" ? "DEBUTANT" : "");
+  Object.assign(form, { nom: "", email: "", telephone: "", ville: "", domaine: "", niveau: "DEBUTANT", message: "", country: "CM" });
+  rawPhone.value = "";
+  phonePrefix.value = "+237";
   success.value = false;
+  sentName.value = "";
 }
 </script>
 
 <style scoped>
-.page-header { background:linear-gradient(135deg,var(--color-primary-dark),var(--color-primary)); color:#fff; padding:3.5rem 0 2.5rem; }
-.page-title { font-size:clamp(1.75rem,3vw,2.5rem); font-weight:800; color:#fff; margin:.5rem 0; }
-.page-subtitle { color:rgba(255,255,255,.75); max-width:600px; }
-.custom-layout { display:grid; grid-template-columns:1fr 1.4fr; gap:3rem; align-items:start; }
-.info-title { font-size:1.25rem; font-weight:700; color:var(--color-primary-dark); margin-bottom:1.5rem; }
-.info-points { display:flex; flex-direction:column; gap:1.25rem; margin-bottom:2rem; }
-.info-point { display:flex; align-items:flex-start; gap:1rem; }
-.info-point-icon { font-size:1.5rem; flex-shrink:0; }
-.info-point h4 { font-size:.9rem; font-weight:700; margin-bottom:.25rem; color:var(--color-primary-dark); }
-.info-point p { font-size:.85rem; color:var(--color-neutral-600); line-height:1.55; }
-.info-note { background:var(--color-primary-50); border:1px solid var(--color-primary-100); border-radius:var(--radius-md); padding:1rem 1.25rem; font-size:.875rem; color:var(--color-primary-dark); }
-.custom-form-wrap { padding:2rem; }
-.form-title { font-size:1.1rem; font-weight:700; color:var(--color-primary-dark); margin-bottom:1.5rem; }
-.form-grid { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
-.custom-form { display:flex; flex-direction:column; gap:1.1rem; }
-.form-note { text-align:center; font-size:.78rem; color:var(--color-neutral-500); }
-.form-success { text-align:center; padding:2rem; display:flex; flex-direction:column; align-items:center; gap:1rem; }
-.form-success h3 { font-size:1.4rem; font-weight:700; color:var(--color-secondary-dark); }
-@media (max-width:900px) { .custom-layout{grid-template-columns:1fr} .form-grid{grid-template-columns:1fr} }
+.page-header { background: var(--color-primary-dark); color: #fff; padding: 4rem 0 3rem; text-align: center; }
+.section-label { font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: rgba(255,255,255,0.5); margin-bottom: 0.5rem; }
+.page-title { font-size: clamp(1.8rem, 4vw, 2.5rem); font-weight: 800; margin-bottom: 1rem; color: #fff; }
+.page-subtitle { color: rgba(255,255,255,0.7); max-width: 600px; margin: 0 auto; line-height: 1.6; }
+
+.custom-layout { display: grid; grid-template-columns: 1fr 1.2fr; gap: 4rem; align-items: start; }
+
+.custom-info {}
+.info-title { font-size: 1.5rem; font-weight: 700; color: var(--color-primary-dark); margin-bottom: 2rem; }
+.info-points { display: flex; flex-direction: column; gap: 1.75rem; }
+.info-point { display: flex; gap: 1rem; }
+.info-point-icon { display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: 12px; background: var(--color-primary-50); color: var(--color-primary); flex-shrink: 0; }
+.info-point h4 { font-size: 1rem; font-weight: 700; color: var(--color-neutral-900); margin-bottom: 0.3rem; }
+.info-point p { font-size: 0.875rem; color: var(--color-neutral-600); line-height: 1.5; }
+.info-note { margin-top: 2.5rem; padding: 1.25rem; background: var(--color-secondary-50); border: 1px solid var(--color-secondary-200); border-radius: var(--radius-md); font-size: 0.85rem; color: var(--color-secondary-dark); line-height: 1.5; }
+
+.custom-form-wrap { padding: 2.5rem; background: #fff; }
+.form-title { font-size: 1.25rem; font-weight: 700; color: var(--color-primary-dark); margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--color-neutral-100); }
+.custom-form { display: flex; flex-direction: column; gap: 1.25rem; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+.form-note { font-size: 0.8rem; color: var(--color-neutral-500); text-align: center; margin-top: 0.5rem; }
+
+.form-success { text-align: center; padding: 3rem 0; }
+.form-success h3 { font-size: 1.5rem; font-weight: 700; color: var(--color-primary-dark); margin: 1rem 0 0.5rem; }
+.form-success p { font-size: 0.9rem; color: var(--color-neutral-600); margin-bottom: 2rem; }
+
+.phone-input-wrapper { display: flex; align-items: center; }
+.phone-prefix {
+  background: var(--color-neutral-100);
+  border: 1px solid var(--color-neutral-300);
+  border-right: none;
+  padding: 0.55rem 0.75rem;
+  border-radius: var(--radius-md) 0 0 var(--radius-md);
+  color: var(--color-neutral-700);
+  font-size: 0.875rem;
+  font-weight: 500;
+  height: 42px;
+  display: flex;
+  align-items: center;
+}
+.phone-input { border-radius: 0 var(--radius-md) var(--radius-md) 0; }
+.phone-input-wrapper.is-error .phone-prefix { border-color: var(--color-error); }
+.phone-input-wrapper.is-error .phone-input { border-color: var(--color-error); }
+
+@media (max-width: 900px) {
+  .custom-layout { grid-template-columns: 1fr; gap: 3rem; }
+}
+@media (max-width: 640px) {
+  .form-grid { grid-template-columns: 1fr; }
+  .custom-form-wrap { padding: 1.5rem; }
+}
 </style>

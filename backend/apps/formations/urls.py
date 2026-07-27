@@ -7,8 +7,7 @@ from .views import (
     FormationListView,
     FormationDetailView,
     LatestFormationsView,
-    ChapitreDetailView,
-    VideoDetailView,
+    DownloadFormationZipView,
     MyFormationsView,
 )
 
@@ -21,9 +20,8 @@ urlpatterns = [
     path("latest/", LatestFormationsView.as_view(), name="latest"),
     path("<slug:slug>/", FormationDetailView.as_view(), name="detail"),
 
-    # Protected content (requires enrollment)
-    path("<slug:slug>/chapitres/<int:chapitre_id>/", ChapitreDetailView.as_view(), name="chapitre-detail"),
-    path("<slug:slug>/videos/<int:video_id>/", VideoDetailView.as_view(), name="video-detail"),
+    # ZIP download (requires enrollment)
+    path("<slug:slug>/download/", DownloadFormationZipView.as_view(), name="download-zip"),
 ]
 
 # User enrollments (separate from the formations namespace)

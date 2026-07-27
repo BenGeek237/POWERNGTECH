@@ -8,11 +8,11 @@
         </h1>
         <p class="hero-subtitle">
           POWER NG TECHNOLOGIE vous forme aux métiers de l'énergie solaire,
-          de l'électronique et de l'électrotechnique. Des formations pratiques,
-          encadrées par des professionnels, à Ngaoundéré.
+          de l'électronique et de l'électrotechnique. Des formations pratiques
+          encadrées par des professionnels.
         </p>
         <div class="hero-actions">
-          <RouterLink to="/formations" class="btn btn-lg hero-btn-primary">
+          <RouterLink to="/formations" class="btn btn-lg btn-primary">
             Voir les formations
           </RouterLink>
           <RouterLink to="/boutique" class="btn btn-lg btn-outline-white">
@@ -68,7 +68,7 @@
   margin-bottom: 1.25rem;
 }
 .hero-title-accent {
-  color: #a8d08d;
+  color: var(--color-secondary);
 }
 
 .hero-subtitle {
@@ -85,16 +85,7 @@
   flex-wrap: wrap;
   margin-bottom: 2.5rem;
 }
-.hero-btn-primary {
-  background: #2E7D32;
-  color: #fff;
-  border-color: #2E7D32;
-}
-.hero-btn-primary:hover {
-  background: #1B5E20;
-  border-color: #1B5E20;
-  color: #fff;
-}
+
 
 .hero-stats {
   display: flex;

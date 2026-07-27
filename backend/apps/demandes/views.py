@@ -3,13 +3,19 @@ from rest_framework import serializers, generics, permissions, status
 from rest_framework.response import Response
 from django.urls import path
 from drf_spectacular.utils import extend_schema
-from .models import DemandeFormation
+from .models import DemandeFormation, ContactMessage
 
 
 class DemandeFormationSerializer(serializers.ModelSerializer):
     class Meta:
         model = DemandeFormation
         fields = ["nom", "telephone", "email", "ville", "domaine", "niveau", "message"]
+
+
+class ContactMessageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ContactMessage
+        fields = ["nom", "email", "telephone", "sujet", "message"]
 
 
 @extend_schema(tags=["Demandes"])
@@ -35,6 +41,30 @@ class DemandeFormationCreateView(generics.CreateAPIView):
         )
 
 
+@extend_schema(tags=["Contact"])
+class ContactMessageCreateView(generics.CreateAPIView):
+    """
+    POST /api/demandes/contact/
+    Submit a contact message. No authentication required.
+    """
+    queryset = ContactMessage.objects.all()
+    serializer_class = ContactMessageSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(
+            {
+                "message": "Votre message a bien été envoyé. "
+                           "Nous vous répondrons dans les plus brefs délais."
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
 urlpatterns = [
     path("", DemandeFormationCreateView.as_view(), name="demande-create"),
+    path("contact/", ContactMessageCreateView.as_view(), name="contact-create"),
 ]

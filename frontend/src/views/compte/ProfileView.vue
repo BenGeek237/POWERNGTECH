@@ -40,10 +40,27 @@
                   <label class="form-label">Email <span class="form-hint">(non modifiable)</span></label>
                   <input :value="authStore.user?.email" type="email" class="form-input" disabled />
                 </div>
+
+                <div class="form-group">
+                  <label class="form-label">Pays</label>
+                  <select v-model="form.country" class="form-select" @change="onCountryChange">
+                    <optgroup label="Afrique">
+                      <option v-for="c in africanCountries" :key="c.code" :value="c.code">{{ c.name }}</option>
+                    </optgroup>
+                    <optgroup label="Autres">
+                      <option v-for="c in otherCountries" :key="c.code" :value="c.code">{{ c.name }}</option>
+                    </optgroup>
+                  </select>
+                </div>
+
                 <div class="form-group">
                   <label class="form-label">Téléphone</label>
-                  <input v-model="form.phone" type="tel" class="form-input" placeholder="Ex: +237 6XX XXX XXX" />
+                  <div class="phone-input-wrapper">
+                    <span class="phone-prefix">{{ phonePrefix }}</span>
+                    <input v-model="rawPhone" type="tel" class="form-input phone-input" placeholder="6XX XXX XXX" />
+                  </div>
                 </div>
+
                 <div class="form-group">
                   <label class="form-label">Ville</label>
                   <input v-model="form.city" type="text" class="form-input" placeholder="Votre ville" />
@@ -84,25 +101,58 @@
 </template>
 
 <script setup>
-import { reactive, ref, onMounted } from "vue";
+import { reactive, ref, onMounted, watch } from "vue";
 import AppLayout from "@/components/common/AppLayout.vue";
 import AccountSidebar from "@/components/compte/AccountSidebar.vue";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { CheckCircle, UserCircle, Save, Lock } from "lucide-vue-next";
+import { africanCountries, otherCountries, getPrefixByCountryCode } from "@/utils/countries";
 
 const authStore = useAuthStore();
 const uiStore   = useUiStore();
 const saved     = ref(false);
-const form      = reactive({ first_name: "", last_name: "", phone: "", city: "" });
+const form      = reactive({ first_name: "", last_name: "", phone: "", city: "", country: "CM" });
+
+const phonePrefix = ref("+237");
+const rawPhone = ref("");
+
+function onCountryChange() {
+  phonePrefix.value = getPrefixByCountryCode(form.country);
+}
+
+watch([phonePrefix, rawPhone], () => {
+  if (rawPhone.value.trim()) {
+    form.phone = `${phonePrefix.value} ${rawPhone.value}`.trim();
+  } else {
+    form.phone = "";
+  }
+});
 
 onMounted(() => {
   const u = authStore.user;
   if (u) {
     form.first_name = u.first_name || "";
     form.last_name  = u.last_name  || "";
-    form.phone      = u.phone      || "";
     form.city       = u.city       || "";
+    form.country    = u.country    || "CM";
+    
+    phonePrefix.value = getPrefixByCountryCode(form.country);
+    
+    if (u.phone) {
+      if (u.phone.startsWith(phonePrefix.value)) {
+        rawPhone.value = u.phone.substring(phonePrefix.value.length).trim();
+      } else {
+        // Fallback if prefix does not match
+        const parts = u.phone.split(" ");
+        if (parts.length > 1 && parts[0].startsWith("+")) {
+          phonePrefix.value = parts[0];
+          rawPhone.value = parts.slice(1).join(" ");
+        } else {
+          rawPhone.value = u.phone;
+        }
+      }
+    }
   }
 });
 
@@ -151,6 +201,22 @@ async function handleSave() {
 
 .fade-enter-active, .fade-leave-active { transition: opacity .3s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
+
+.phone-input-wrapper { display: flex; align-items: center; }
+.phone-prefix {
+  background: var(--color-neutral-100);
+  border: 1px solid var(--color-neutral-300);
+  border-right: none;
+  padding: 0.55rem 0.75rem;
+  border-radius: var(--radius-md) 0 0 var(--radius-md);
+  color: var(--color-neutral-700);
+  font-size: 0.875rem;
+  font-weight: 500;
+  height: 42px;
+  display: flex;
+  align-items: center;
+}
+.phone-input { border-radius: 0 var(--radius-md) var(--radius-md) 0; }
 
 @media (max-width: 768px) {
   .account-layout { grid-template-columns: 1fr; }

@@ -9,7 +9,7 @@
           </RouterLink>
           <p class="footer-desc">
             Votre partenaire de confiance en énergie solaire, électronique,
-            formation professionnelle et solutions technologiques au Cameroun.
+            formation professionnelle et solutions technologiques.
           </p>
           <!-- Social -->
           <div class="social-links">
@@ -85,7 +85,7 @@
         <div class="footer-bottom-links">
           <RouterLink to="/mentions-legales" class="footer-legal-link">Mentions Légales</RouterLink>
         </div>
-        <p class="footer-tagline">Votre partenaire technologique au Cameroun</p>
+        <p class="footer-tagline">Votre partenaire technologique international</p>
       </div>
     </div>
   </footer>
