@@ -22,6 +22,7 @@ ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
 
 # Application definition
 DJANGO_APPS = [
+    "jazzmin",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -53,6 +54,7 @@ INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",  # Must be first
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -110,6 +112,7 @@ USE_TZ = True
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [BASE_DIR / "static"]
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 # Media files
 MEDIA_URL = os.getenv("MEDIA_URL", "/media/")
@@ -193,3 +196,23 @@ SPECTACULAR_SETTINGS = {
 # File upload settings
 FILE_UPLOAD_MAX_MEMORY_SIZE = 50 * 1024 * 1024   # 50MB
 DATA_UPLOAD_MAX_MEMORY_SIZE = 50 * 1024 * 1024   # 50MB
+
+# Jazzmin settings
+JAZZMIN_SETTINGS = {
+    "site_title": "Administration POWER NG",
+    "site_header": "POWER NG",
+    "site_brand": "POWER NG",
+    "welcome_sign": "Bienvenue sur l'administration de POWER NG TECHNOLOGIE",
+    "search_model": ["accounts.CustomUser", "boutique.Order", "demandes.ContactMessage"],
+    "show_ui_builder": False,
+    "topmenu_links": [
+        {"name": "Accueil", "url": "admin:index", "permissions": ["auth.view_user"]},
+        {"name": "Voir le site", "url": FRONTEND_URL, "new_window": True},
+    ],
+    "order_with_respect_to": ["boutique", "formations", "demandes", "accounts", "paiements", "services"],
+}
+
+JAZZMIN_UI_TWEAKS = {
+    "theme": "flatly",
+    "dark_mode_theme": "darkly",
+}

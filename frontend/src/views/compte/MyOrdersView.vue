@@ -49,7 +49,7 @@
               <!-- Items -->
               <div class="order-items">
                 <div v-for="item in order.items" :key="item.id" class="order-item">
-                  <div class="item-name">{{ item.product_name }}</div>
+                  <div class="item-name">{{ item.product?.name || 'Produit inconnu' }}</div>
                   <div class="item-qty">× {{ item.quantity }}</div>
                   <div class="item-price">{{ formatPrice(item.unit_price) }} FCFA</div>
                 </div>
@@ -59,6 +59,9 @@
                 <div class="order-total">
                   <span>Total</span>
                   <strong>{{ formatPrice(order.total_amount) }} FCFA</strong>
+                  <RouterLink v-if="order.status === 'PENDING'" :to="{ name: 'paiement', query: { type: 'commande', id: order.id, slug: 'cmd' } }" class="btn btn-primary btn-sm" style="margin-left:1rem">
+                    Payer maintenant
+                  </RouterLink>
                 </div>
                 <div class="order-status-track">
                   <div

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f4f4f5; padding: 20px; }
+        .container { background-color: #ffffff; padding: 30px; border-radius: 8px; max-width: 600px; margin: 0 auto; }
+        .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #bfdbfe; padding-bottom: 10px; }
+        h1 { color: #b91c1c; font-size: 20px; }
+        .info-box { background-color: #f8fafc; padding: 15px; border-left: 4px solid #3b82f6; margin-bottom: 20px; }
+        .footer { text-align: center; font-size: 12px; color: #71717a; margin-top: 30px; border-top: 1px solid #e4e4e7; padding-top: 15px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>NOUVEAU MESSAGE DE CONTACT</h1>
+        </div>
+        <p>Un nouveau message vient d'être envoyé depuis le site web.</p>
+        
+        <div class="info-box">
+            <p><strong>Nom :</strong> {{ nom }}</p>
+            <p><strong>Email :</strong> {{ email }}</p>
+            <p><strong>Téléphone :</strong> {{ telephone|default:"Non renseigné" }}</p>
+            <p><strong>Sujet :</strong> {{ sujet }}</p>
+        </div>
+
+        <h3>Message :</h3>
+        <p style="background-color: #f1f5f9; padding: 15px; border-radius: 5px; white-space: pre-wrap;">{{ message }}</p>
+        
+        <p>Connectez-vous à l'interface d'administration pour gérer ce message.</p>
+
+        <div class="footer">
+            Ceci est un message automatique généré par POWER NG TECHNOLOGIE.
+        </div>
+    </div>
+</body>
+</html>

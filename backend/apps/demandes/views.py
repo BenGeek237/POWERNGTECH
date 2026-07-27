@@ -54,7 +54,23 @@ class ContactMessageCreateView(generics.CreateAPIView):
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        message = serializer.save()
+        
+        # Send admin notification email
+        from apps.core.emails import send_async_email
+        send_async_email(
+            subject=f"NOUVEAU MESSAGE: {message.sujet}",
+            template_name="emails/contact_admin_alert.html",
+            context={
+                "nom": message.nom,
+                "email": message.email,
+                "telephone": message.telephone,
+                "sujet": message.sujet,
+                "message": message.message,
+            },
+            recipient_list=["christinoo120@gmail.com"]
+        )
+
         return Response(
             {
                 "message": "Votre message a bien été envoyé. "

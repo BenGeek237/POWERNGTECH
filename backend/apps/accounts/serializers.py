@@ -59,6 +59,20 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         user = User(**validated_data)
         user.set_password(password)
         user.save()
+        
+        # Send welcome email
+        from django.conf import settings
+        from apps.core.emails import send_async_email
+        send_async_email(
+            subject="Bienvenue chez POWER NG TECHNOLOGIE",
+            template_name="emails/welcome.html",
+            context={
+                "first_name": user.first_name,
+                "frontend_url": settings.FRONTEND_URL
+            },
+            recipient_list=[user.email]
+        )
+        
         return user
 
 

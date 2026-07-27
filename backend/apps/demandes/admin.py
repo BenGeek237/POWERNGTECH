@@ -15,3 +15,13 @@ class DemandeFormationAdmin(admin.ModelAdmin):
         ("Traitement", {"fields": ("status", "admin_notes")}),
         ("Dates", {"fields": ("created_at",), "classes": ("collapse",)}),
     )
+
+
+@admin.register(ContactMessage)
+class ContactMessageAdmin(admin.ModelAdmin):
+    list_display = ["nom", "sujet", "email", "telephone", "lu", "created_at"]
+    list_filter = ["lu", "created_at"]
+    search_fields = ["nom", "email", "sujet", "message"]
+    readonly_fields = ["nom", "email", "telephone", "sujet", "message", "created_at"]
+    list_editable = ["lu"]
+    list_per_page = 20

@@ -149,6 +149,18 @@ onMounted(async () => {
     } finally {
       loading.value = false;
     }
+  } else if (route.query.type === 'commande' && route.query.id) {
+    itemType.value = "order";
+    itemId.value = route.query.id;
+    try {
+      const { data } = await boutiqueApi.getOrder(route.query.id);
+      itemTitle.value = `Commande #${data.id}`;
+      itemPrice.value = data.total_amount;
+    } catch (err) {
+      error.value = "Impossible de récupérer les informations de la commande.";
+    } finally {
+      loading.value = false;
+    }
   } else {
     error.value = "Aucun article sélectionné valide.";
     loading.value = false;
