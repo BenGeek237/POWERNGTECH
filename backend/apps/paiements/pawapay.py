@@ -17,14 +17,22 @@ class PawaPayService:
     Service class to interact with PawaPay Direct Deposit API.
     """
 
-    API_KEY = getattr(settings, "PAWAPAY_API_KEY", "")
-    BASE_URL = getattr(settings, "PAWAPAY_BASE_URL", "https://api.sandbox.pawapay.cloud").rstrip("/")
+    @classmethod
+    def get_api_key(cls) -> str:
+        return getattr(settings, "PAWAPAY_API_KEY", "").strip()
+
+    @classmethod
+    def get_base_url(cls) -> str:
+        url = getattr(settings, "PAWAPAY_BASE_URL", "https://api.sandbox.pawapay.cloud").strip()
+        if not url or url == "https://api.pawapay.cloud":
+            url = "https://api.sandbox.pawapay.cloud"
+        return url.rstrip("/")
 
     @classmethod
     def get_headers(cls) -> dict:
         """Construct authorization headers for PawaPay API requests."""
         return {
-            "Authorization": f"Bearer {cls.API_KEY}",
+            "Authorization": f"Bearer {cls.get_api_key()}",
             "Content-Type": "application/json",
         }
 
@@ -54,7 +62,7 @@ class PawaPayService:
         Returns:
             dict containing 'deposit_id', 'status', 'created'
         """
-        url = f"{cls.BASE_URL}/deposits"
+        url = f"{cls.get_base_url()}/deposits"
 
         # Format phone number to international standard without + if needed
         clean_phone = "".join(filter(str.isdigit, str(phone)))
@@ -124,7 +132,7 @@ class PawaPayService:
         """
         Check deposit status via GET /deposits/{deposit_id}
         """
-        url = f"{cls.BASE_URL}/deposits/{deposit_id}"
+        url = f"{cls.get_base_url()}/deposits/{deposit_id}"
 
         try:
             response = requests.get(
