@@ -186,7 +186,7 @@ MONETBIL_NOTIFY_URL = os.getenv(
 
 # PawaPay Payment Gateway
 PAWAPAY_API_KEY = os.getenv("PAWAPAY_API_KEY", "")
-PAWAPAY_BASE_URL = os.getenv("PAWAPAY_BASE_URL", "https://api.pawapay.cloud")
+PAWAPAY_BASE_URL = os.getenv("PAWAPAY_BASE_URL", "https://api.sandbox.pawapay.cloud")
 MONETBIL_RETURN_URL = os.getenv(
     "MONETBIL_RETURN_URL",
     "http://localhost:5173/paiement/retour"

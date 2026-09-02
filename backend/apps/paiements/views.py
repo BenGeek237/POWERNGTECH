@@ -144,29 +144,28 @@ class InitiatePaymentView(APIView):
         if selected_provider == Payment.Provider.PAWAPAY:
             deposit_id = PawaPayService.generate_deposit_id()
             payment.pawapay_deposit_id = deposit_id
+            user_phone = data.get("phone") or user.phone or "237677676767"
+
             try:
-                return_url = f"{settings.FRONTEND_URL}/paiement/retour/"
-                result = PawaPayService.initiate_deposit_session(
+                result = PawaPayService.initiate_deposit(
                     amount=amount,
                     deposit_id=deposit_id,
-                    return_url=return_url,
+                    phone=user_phone,
+                    provider_code="MTN",
                     description=item_ref,
-                    phone=data.get("phone", user.phone or ""),
                 )
-                redirect_url = result.get("redirect_url")
-                payment.payment_url = redirect_url
                 payment.status = Payment.Status.PENDING
-                payment.save(update_fields=["pawapay_deposit_id", "payment_url", "status"])
+                payment.save(update_fields=["pawapay_deposit_id", "status"])
 
                 return Response({
-                    "payment_url": redirect_url,
                     "reference": deposit_id,
-                    "message": "Redirection vers la page de paiement PawaPay...",
+                    "status": "PENDING",
+                    "message": "Paiement initié avec succès. Veuillez entrer votre code PIN Mobile Money sur votre téléphone.",
                 })
             except PawaPayError as e:
                 payment.status = Payment.Status.FAILED
                 payment.save(update_fields=["status"])
-                return Response({"error": str(e)}, status=status.HTTP_502_BAD_GATEWAY)
+                return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
         # ── MonetBil Gateway (default) ──
         result = initiate_payment(
