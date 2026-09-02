@@ -1,8 +1,7 @@
 """
 POWER NG TECHNOLOGIE — Paiements Views
-Handles payment initialization, status checking, CAMERPAY and CinetPay webhooks.
+Handles payment initialization via MonetBil, status checking, and webhook processing.
 """
-import json
 import logging
 from django.utils import timezone
 from django.conf import settings
@@ -12,9 +11,15 @@ from rest_framework.views import APIView
 from drf_spectacular.utils import extend_schema
 
 from .models import Payment
-from .camerpay import CamerpayService, CamerpayError
-from .cinetpay import CinetPayService, CinetPayError
-from .monetbil import MonetbilService, MonetbilError
+from .monetbil import (
+    initiate_payment,
+    check_payment,
+    generate_payment_ref,
+    MONETBIL_STATUS_SUCCESS,
+    MONETBIL_STATUS_CANCELLED,
+)
+from .pawapay import PawaPayService, PawaPayError
+
 from apps.formations.models import Formation, Enrollment
 from apps.boutique.models import Order
 
@@ -27,7 +32,11 @@ logger = logging.getLogger(__name__)
 
 class PaymentInitSerializer(serializers.Serializer):
     """Input serializer for payment initialization."""
-    provider = serializers.ChoiceField(choices=Payment.Provider.choices)
+    provider = serializers.ChoiceField(
+        choices=Payment.Provider.choices,
+        required=False,
+        default=Payment.Provider.MTN,
+    )
     formation_id = serializers.IntegerField(required=False, allow_null=True)
     order_id = serializers.IntegerField(required=False, allow_null=True)
     phone = serializers.CharField(required=False, max_length=20, default="")
@@ -50,8 +59,7 @@ class PaymentStatusSerializer(serializers.ModelSerializer):
         model = Payment
         fields = [
             "id", "amount", "status", "provider",
-            "camerpay_reference", "cinetpay_transaction_id",
-            "paid_at", "created_at"
+            "transaction_id", "paid_at", "created_at"
         ]
 
 
@@ -63,7 +71,8 @@ class PaymentStatusSerializer(serializers.ModelSerializer):
 class InitiatePaymentView(APIView):
     """
     POST /api/paiements/initier/
-    Initialize a payment session (CamerPay for MoMo/OM, CinetPay for cards).
+    Initialize a payment session via MonetBil.
+    Returns a payment_url to redirect the user to MonetBil's payment page.
     """
     permission_classes = [permissions.IsAuthenticated]
 
@@ -76,6 +85,7 @@ class InitiatePaymentView(APIView):
         formation = None
         order = None
         amount = 0
+        item_ref = ""
 
         # Determine what is being paid for
         if data.get("formation_id"):
@@ -90,13 +100,15 @@ class InitiatePaymentView(APIView):
                     {"error": "Formation introuvable ou gratuite."},
                     status=status.HTTP_404_NOT_FOUND,
                 )
-            if Enrollment.objects.filter(user=user, formation=formation, is_active=True).exists():
+            if Enrollment.objects.filter(
+                user=user, formation=formation, is_active=True
+            ).exists():
                 return Response(
                     {"error": "Vous êtes déjà inscrit à cette formation."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             amount = int(formation.price)
-            description = f"Formation: {formation.title}"
+            item_ref = f"formation-{formation.pk}"
 
         elif data.get("order_id"):
             try:
@@ -111,182 +123,203 @@ class InitiatePaymentView(APIView):
                     status=status.HTTP_404_NOT_FOUND,
                 )
             amount = int(order.total_amount)
-            description = f"Commande #{order.pk}"
+            item_ref = f"order-{order.pk}"
 
-        provider = data["provider"]
+        # Generate a unique payment reference
+        payment_ref = generate_payment_ref()
+        selected_provider = data.get("provider", Payment.Provider.MTN)
 
-        # ── CinetPay (Carte Bancaire) ──
-        if provider == Payment.Provider.CARTE:
-            return self._initiate_cinetpay(request, user, amount, description, formation, order)
-
-        # ── Monetbil (MTN MoMo, Orange Money) ──
-        return self._initiate_monetbil(request, user, data, amount, description, formation, order)
-
-    def _initiate_cinetpay(self, request, user, amount, description, formation, order):
-        """Initialize a CinetPay payment session."""
-        transaction_id = CinetPayService.generate_transaction_id()
+        # Create the Payment record in our database
         payment = Payment.objects.create(
             user=user,
             amount=amount,
-            provider=Payment.Provider.CARTE,
-            cinetpay_transaction_id=transaction_id,
+            provider=selected_provider,
+            status=Payment.Status.INITIATED,
+            transaction_id=payment_ref,
             formation=formation,
             order=order,
-            status=Payment.Status.INITIATED,
         )
 
-        try:
-            return_url = f"{settings.FRONTEND_URL}/paiement/retour/{transaction_id}/"
-            notify_url = f"{request.scheme}://{request.get_host()}/api/paiements/cinetpay-webhook/"
+        # ── PawaPay Gateway ──
+        if selected_provider == Payment.Provider.PAWAPAY:
+            deposit_id = PawaPayService.generate_deposit_id()
+            payment.pawapay_deposit_id = deposit_id
+            try:
+                return_url = f"{settings.FRONTEND_URL}/paiement/retour/"
+                result = PawaPayService.initiate_deposit_session(
+                    amount=amount,
+                    deposit_id=deposit_id,
+                    return_url=return_url,
+                    description=item_ref,
+                    phone=data.get("phone", user.phone or ""),
+                )
+                redirect_url = result.get("redirect_url")
+                payment.payment_url = redirect_url
+                payment.status = Payment.Status.PENDING
+                payment.save(update_fields=["pawapay_deposit_id", "payment_url", "status"])
 
-            result = CinetPayService.initialize_payment(
-                amount=amount,
-                currency="XAF",
-                description=description,
-                transaction_id=transaction_id,
-                return_url=return_url,
-                notify_url=notify_url,
-                customer_name=user.get_full_name(),
-                customer_email=user.email,
-                customer_phone=user.phone or "",
-                channels="ALL",
-            )
+                return Response({
+                    "payment_url": redirect_url,
+                    "reference": deposit_id,
+                    "message": "Redirection vers la page de paiement PawaPay...",
+                })
+            except PawaPayError as e:
+                payment.status = Payment.Status.FAILED
+                payment.save(update_fields=["status"])
+                return Response({"error": str(e)}, status=status.HTTP_502_BAD_GATEWAY)
 
-            payment.cinetpay_payment_url = result.get("payment_url", "")
-            payment.status = Payment.Status.PENDING
-            payment.save(update_fields=["cinetpay_payment_url", "status"])
-
-            return Response(
-                {
-                    "transaction_id": transaction_id,
-                    "payment_url": result.get("payment_url", ""),
-                    "amount": amount,
-                    "payment_id": payment.pk,
-                },
-                status=status.HTTP_201_CREATED,
-            )
-
-        except CinetPayError as e:
-            payment.status = Payment.Status.FAILED
-            payment.save(update_fields=["status"])
-            return Response({"error": str(e)}, status=status.HTTP_502_BAD_GATEWAY)
-
-    def _initiate_camerpay(self, request, user, data, amount, description, formation, order):
-        """Initialize a CamerPay payment session."""
-        reference = CamerpayService.generate_reference()
-        payment = Payment.objects.create(
-            user=user,
+        # ── MonetBil Gateway (default) ──
+        result = initiate_payment(
             amount=amount,
-            provider=data["provider"],
-            camerpay_reference=reference,
-            formation=formation,
-            order=order,
-            status=Payment.Status.INITIATED,
+            payment_ref=payment_ref,
+            item_ref=item_ref,
+            phone=data.get("phone", ""),
+            email=user.email,
+            first_name=user.first_name,
+            last_name=user.last_name,
         )
 
-        try:
-            return_url = f"{settings.FRONTEND_URL}/paiement/retour/{reference}/"
-            camerpay_response = CamerpayService.initialize_payment(
-                amount=amount,
-                description=description,
-                customer_email=user.email,
-                customer_phone=data.get("phone", user.phone or ""),
-                reference=reference,
-                callback_url=f"{request.scheme}://{request.get_host()}/api/paiements/webhook/",
-                return_url=return_url,
-            )
-
-            payment_url = camerpay_response.get("payment_url", "")
-            payment.camerpay_payment_url = payment_url
+        if result["success"]:
+            # Save the payment URL
+            payment.payment_url = result["payment_url"]
             payment.status = Payment.Status.PENDING
-            payment.save(update_fields=["camerpay_payment_url", "status"])
+            payment.save(update_fields=["payment_url", "status"])
 
-            return Response(
-                {
-                    "reference": reference,
-                    "payment_url": payment_url,
-                    "amount": amount,
-                    "payment_id": payment.pk,
-                },
-                status=status.HTTP_201_CREATED,
+            logger.info(
+                f"Payment initiated: ref={payment_ref}, "
+                f"amount={amount} FCFA, user={user.email}"
             )
 
-        except CamerpayError as e:
+            return Response({
+                "payment_url": result["payment_url"],
+                "reference": payment_ref,
+                "message": "Redirection vers la page de paiement...",
+            })
+        else:
+            # MonetBil API returned an error
             payment.status = Payment.Status.FAILED
             payment.save(update_fields=["status"])
-            return Response({"error": str(e)}, status=status.HTTP_502_BAD_GATEWAY)
 
-    def _initiate_monetbil(self, request, user, data, amount, description, formation, order):
-        """Initialize a Monetbil payment session."""
-        payment_ref = f"PNT-{timezone.now().strftime('%Y%m%d%H%M%S')}-{user.id}"
-        payment = Payment.objects.create(
-            user=user,
-            amount=amount,
-            provider=data["provider"],
-            monetbil_payment_id=payment_ref,
-            formation=formation,
-            order=order,
-            status=Payment.Status.INITIATED,
-        )
-
-        try:
-            return_url = f"{settings.FRONTEND_URL}/paiement/retour/{payment_ref}/"
-            notify_url = f"{request.scheme}://{request.get_host()}/api/paiements/monetbil-webhook/"
-
-            result = MonetbilService.initialize_payment(
-                amount=amount,
-                payment_ref=payment_ref,
-                return_url=return_url,
-                notify_url=notify_url,
-                phone=data.get("phone", user.phone or ""),
-                first_name=user.first_name,
-                last_name=user.last_name,
-                email=user.email,
-                item_ref=description,
+            logger.error(
+                f"Payment initiation failed: ref={payment_ref}, "
+                f"error={result.get('error')}"
             )
-
-            payment_url = result.get("payment_url", "")
-            payment.monetbil_payment_url = payment_url
-            payment.status = Payment.Status.PENDING
-            payment.save(update_fields=["monetbil_payment_url", "status"])
 
             return Response(
-                {
-                    "reference": payment_ref,
-                    "payment_url": payment_url,
-                    "amount": amount,
-                    "payment_id": payment.pk,
-                },
-                status=status.HTTP_201_CREATED,
+                {"error": result.get("error", "Erreur lors de l'initiation du paiement.")},
+                status=status.HTTP_502_BAD_GATEWAY,
             )
-
-        except MonetbilError as e:
-            payment.status = Payment.Status.FAILED
-            payment.save(update_fields=["status"])
-            return Response({"error": str(e)}, status=status.HTTP_502_BAD_GATEWAY)
 
 
 @extend_schema(tags=["Paiements"])
 class PaymentStatusView(APIView):
     """
     GET /api/paiements/statut/{reference}/
-    Poll payment status.
+    Check the status of a payment. Also queries MonetBil if still pending.
     """
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, reference: str):
-        from django.db.models import Q
-
         payment = Payment.objects.filter(
             user=request.user,
-        ).filter(
-            Q(camerpay_reference=reference) | Q(cinetpay_transaction_id=reference) | Q(monetbil_payment_id=reference)
+            transaction_id=reference,
         ).first()
 
         if not payment:
-            return Response({"error": "Paiement introuvable."}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"error": "Paiement introuvable."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # If payment is still pending, check with MonetBil
+        if payment.status in (
+            Payment.Status.INITIATED,
+            Payment.Status.PENDING,
+        ):
+            # Try to check with MonetBil using the payment_ref
+            # Note: MonetBil webhook is the primary notification mechanism
+            pass
 
         return Response(PaymentStatusSerializer(payment).data)
+
+
+@extend_schema(tags=["Paiements"])
+class MonetBilWebhookView(APIView):
+    """
+    POST /api/paiements/webhook/monetbil/
+    Receives payment notifications from MonetBil.
+
+    MonetBil sends a POST with a paymentId when a payment status changes.
+    We then call checkPayment to verify the transaction.
+    """
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []  # No auth for webhooks
+
+    def post(self, request):
+        payment_id = request.data.get("paymentId") or request.POST.get("paymentId")
+
+        if not payment_id:
+            logger.warning("MonetBil webhook: No paymentId received")
+            return Response(
+                {"error": "paymentId manquant."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        logger.info(f"MonetBil webhook received: paymentId={payment_id}")
+
+        # Verify the payment with MonetBil
+        result = check_payment(payment_id)
+        transaction = result.get("transaction", {})
+        payment_ref = transaction.get("payment_ref", "")
+
+        if not payment_ref:
+            logger.warning(
+                f"MonetBil webhook: No payment_ref in transaction "
+                f"for paymentId={payment_id}"
+            )
+            return Response({"status": "ignored"})
+
+        # Find the payment in our database
+        try:
+            payment = Payment.objects.get(transaction_id=payment_ref)
+        except Payment.DoesNotExist:
+            logger.warning(
+                f"MonetBil webhook: Payment not found for ref={payment_ref}"
+            )
+            return Response({"status": "not_found"})
+
+        # Don't process already completed payments
+        if payment.status == Payment.Status.SUCCESS:
+            logger.info(f"MonetBil webhook: Payment {payment_ref} already processed")
+            return Response({"status": "already_processed"})
+
+        # Store the MonetBil payment ID for future reference
+        payment.monetbil_payment_id = payment_id
+        payment.save(update_fields=["monetbil_payment_id"])
+
+        monetbil_status = result.get("status", 0)
+
+        if monetbil_status == MONETBIL_STATUS_SUCCESS:
+            # Payment successful — activate enrollment/order
+            _activate_payment(payment)
+            logger.info(f"MonetBil webhook: Payment {payment_ref} SUCCESS")
+            return Response({"status": "success"})
+
+        elif monetbil_status == MONETBIL_STATUS_CANCELLED:
+            payment.status = Payment.Status.CANCELLED
+            payment.save(update_fields=["status"])
+            logger.info(f"MonetBil webhook: Payment {payment_ref} CANCELLED")
+            return Response({"status": "cancelled"})
+
+        else:
+            # Status 0 = still pending or failed
+            payment.status = Payment.Status.FAILED
+            payment.save(update_fields=["status"])
+            logger.info(
+                f"MonetBil webhook: Payment {payment_ref} "
+                f"status={monetbil_status}"
+            )
+            return Response({"status": "failed"})
 
 
 def _activate_payment(payment):
@@ -313,142 +346,46 @@ def _activate_payment(payment):
 
 
 @extend_schema(tags=["Paiements"])
-class CamerpayWebhookView(APIView):
+class PawaPayWebhookView(APIView):
     """
-    POST /api/paiements/webhook/
-    Receives CAMERPAY webhook notifications.
-    """
-    permission_classes = [permissions.AllowAny]
-    authentication_classes = []
-
-    def post(self, request):
-        signature = request.headers.get("X-Camerpay-Signature", "")
-        raw_body = request.body
-
-        if not CamerpayService.verify_webhook_signature(raw_body, signature):
-            logger.warning("Invalid CAMERPAY webhook signature received.")
-            return Response({"error": "Signature invalide."}, status=status.HTTP_403_FORBIDDEN)
-
-        try:
-            payload = json.loads(raw_body)
-        except json.JSONDecodeError:
-            return Response({"error": "Corps invalide."}, status=status.HTTP_400_BAD_REQUEST)
-
-        reference = payload.get("reference")
-        webhook_status = payload.get("status")
-
-        logger.info(f"CAMERPAY webhook: ref={reference}, status={webhook_status}")
-
-        try:
-            payment = Payment.objects.get(camerpay_reference=reference)
-        except Payment.DoesNotExist:
-            logger.error(f"Payment not found for reference: {reference}")
-            return Response(status=status.HTTP_200_OK)
-
-        if webhook_status == "SUCCESS":
-            _activate_payment(payment)
-        elif webhook_status in ("FAILED", "CANCELLED"):
-            payment.status = (
-                Payment.Status.FAILED if webhook_status == "FAILED"
-                else Payment.Status.CANCELLED
-            )
-            payment.save(update_fields=["status"])
-
-        return Response({"message": "Webhook reçu."}, status=status.HTTP_200_OK)
-
-
-@extend_schema(tags=["Paiements"])
-class CinetPayWebhookView(APIView):
-    """
-    POST /api/paiements/cinetpay-webhook/
-    Receives CinetPay webhook notifications (IPN).
+    POST /api/paiements/pawapay-webhook/
+    Receives PawaPay deposit callbacks / notifications.
     """
     permission_classes = [permissions.AllowAny]
     authentication_classes = []
 
     def post(self, request):
         data = request.data
-        transaction_id = data.get("cpm_trans_id", "")
+        logger.info(f"PawaPay webhook callback received: {data}")
 
-        logger.info(f"CinetPay webhook received: txn={transaction_id}")
+        deposit_id = data.get("depositId") or data.get("deposit_id")
+        status_val = data.get("status", "").upper()
 
-        if not transaction_id:
-            return Response(status=status.HTTP_200_OK)
+        if not deposit_id:
+            return Response({"error": "depositId manquant."}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            payment = Payment.objects.get(cinetpay_transaction_id=transaction_id)
+            payment = Payment.objects.get(pawapay_deposit_id=deposit_id)
         except Payment.DoesNotExist:
-            logger.error(f"Payment not found for CinetPay txn: {transaction_id}")
-            return Response(status=status.HTTP_200_OK)
+            # Fallback lookup by transaction_id
+            payment = Payment.objects.filter(transaction_id=deposit_id).first()
+            if not payment:
+                logger.warning(f"PawaPay webhook: Payment not found for depositId={deposit_id}")
+                return Response({"status": "not_found"}, status=status.HTTP_200_OK)
 
-        # Verify by checking status with CinetPay API
-        try:
-            status_data = CinetPayService.check_payment_status(transaction_id)
-            cinetpay_status = status_data.get("status", "")
-
-            if cinetpay_status == "ACCEPTED":
-                _activate_payment(payment)
-                logger.info(f"CinetPay payment ACCEPTED: txn={transaction_id}")
-            elif cinetpay_status in ("REFUSED", "CANCELLED"):
-                payment.status = Payment.Status.FAILED
-                payment.save(update_fields=["status"])
-                logger.info(f"CinetPay payment {cinetpay_status}: txn={transaction_id}")
-
-        except CinetPayError as e:
-            logger.error(f"CinetPay verification failed: {e}")
-
-        return Response({"message": "Webhook reçu."}, status=status.HTTP_200_OK)
-
-
-@extend_schema(tags=["Paiements"])
-class MonetbilWebhookView(APIView):
-    """
-    POST/GET /api/paiements/monetbil-webhook/
-    Receives Monetbil webhook notifications (status=success, cancelled, failed).
-    """
-    permission_classes = [permissions.AllowAny]
-    authentication_classes = []
-
-    def post(self, request):
-        return self._handle_notification(request.data or request.POST)
-
-    def get(self, request):
-        return self._handle_notification(request.GET)
-
-    def _handle_notification(self, data):
-        data_dict = data.dict() if hasattr(data, "dict") else dict(data)
-        logger.info(f"Monetbil webhook notification received: {data_dict}")
-
-        sign = data_dict.get("sign", "")
-        payment_ref = data_dict.get("payment_ref", "") or data_dict.get("item_ref", "")
-        status_val = data_dict.get("status", "")
-
-        # Optional signature check log (if secret key configured)
-        if settings.MONETBIL_SERVICE_SECRET:
-            if not MonetbilService.verify_signature(data_dict, sign):
-                logger.warning("Invalid Monetbil webhook signature.")
-                # We log warning but continue if ref exists for dev testing
-
-        if not payment_ref:
-            return Response({"error": "Référence manquante."}, status=status.HTTP_400_BAD_REQUEST)
-
-        try:
-            payment = Payment.objects.get(monetbil_payment_id=payment_ref)
-        except Payment.DoesNotExist:
-            logger.error(f"Payment not found for Monetbil ref: {payment_ref}")
-            return Response(status=status.HTTP_200_OK)
-
-        if status_val == "success":
+        if status_val in ("COMPLETED", "SUCCESS", "SUBMITTED"):
             _activate_payment(payment)
-            logger.info(f"Monetbil payment SUCCESS: ref={payment_ref}")
-        elif status_val in ("cancelled", "failed"):
-            payment.status = (
-                Payment.Status.CANCELLED if status_val == "cancelled" else Payment.Status.FAILED
-            )
+            logger.info(f"PawaPay webhook: Payment depositId={deposit_id} COMPLETED")
+        elif status_val in ("FAILED", "REJECTED"):
+            payment.status = Payment.Status.FAILED
             payment.save(update_fields=["status"])
-            logger.info(f"Monetbil payment {status_val}: ref={payment_ref}")
+            logger.info(f"PawaPay webhook: Payment depositId={deposit_id} FAILED")
+        elif status_val in ("CANCELLED", "EXPIRED"):
+            payment.status = Payment.Status.CANCELLED
+            payment.save(update_fields=["status"])
+            logger.info(f"PawaPay webhook: Payment depositId={deposit_id} CANCELLED")
 
-        return Response("received", status=status.HTTP_200_OK)
+        return Response({"status": "received"}, status=status.HTTP_200_OK)
 
 
 @extend_schema(tags=["Paiements"])

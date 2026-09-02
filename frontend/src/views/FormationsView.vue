@@ -1,11 +1,11 @@
 <template>
   <AppLayout>
-    <!-- Page Header -->
-    <div class="page-header">
+    <!-- Page Banner -->
+    <div class="page-banner">
       <div class="container">
-        <p class="section-label">Notre catalogue</p>
-        <h1 class="page-title">Toutes les formations</h1>
-        <p class="page-subtitle">
+        <p class="page-banner-label">Notre catalogue</p>
+        <h1 class="page-banner-title">Toutes les formations</h1>
+        <p class="page-banner-desc">
           Développez vos compétences avec nos formations pratiques en énergie, électronique et électrotechnique.
         </p>
       </div>

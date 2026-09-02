@@ -60,7 +60,7 @@
                 <tbody>
                   <tr v-for="p in payments" :key="p.id" class="payment-row">
                     <td>
-                      <code class="ref-code">{{ p.cinetpay_transaction_id || p.camerpay_reference || `PAY-${p.id}` }}</code>
+                      <code class="ref-code">{{ p.transaction_id || `PAY-${p.id}` }}</code>
                     </td>
                     <td class="amount-cell">{{ formatPrice(p.amount) }} <span class="currency">FCFA</span></td>
                     <td>

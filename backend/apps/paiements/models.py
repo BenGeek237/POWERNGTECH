@@ -1,6 +1,6 @@
 """
 POWER NG TECHNOLOGIE — Paiements Models
-Handles CAMERPAY payment records, webhooks, and enrollment activation.
+Handles MonetBil payment records, webhooks, and enrollment activation.
 """
 from django.db import models
 from django.contrib.auth import get_user_model
@@ -13,6 +13,7 @@ class Payment(TimeStampedModel):
     """
     Records a payment transaction.
     Links to either a Formation (for enrollment) or an Order (for products).
+    Payments are processed via MonetBil (MTN MoMo, Orange Money).
     """
 
     class Status(models.TextChoices):
@@ -26,8 +27,8 @@ class Payment(TimeStampedModel):
     class Provider(models.TextChoices):
         MTN = "MTN", "MTN MoMo"
         ORANGE = "ORANGE", "Orange Money"
-        CARTE = "CARTE", "Carte Bancaire"
-        PAYPAL = "PAYPAL", "PayPal"
+        EU = "EU", "Express Union"
+        PAWAPAY = "PAWAPAY", "PawaPay Multi-pays"
 
     user = models.ForeignKey(
         User,
@@ -45,34 +46,28 @@ class Payment(TimeStampedModel):
     )
     provider = models.CharField(
         max_length=20, choices=Provider.choices,
+        default=Provider.MTN,
         verbose_name="Méthode de paiement"
     )
 
-    # CAMERPAY references
-    camerpay_reference = models.CharField(
-        max_length=255, unique=True, blank=True,
-        verbose_name="Référence CAMERPAY"
+    # MonetBil references
+    transaction_id = models.CharField(
+        max_length=255, unique=True, blank=True, null=True,
+        verbose_name="Référence de paiement",
+        help_text="Notre référence interne (payment_ref envoyé à MonetBil/PawaPay)"
     )
-    camerpay_payment_url = models.URLField(
-        blank=True, verbose_name="URL de paiement CAMERPAY"
-    )
-
-    # CinetPay references
-    cinetpay_transaction_id = models.CharField(
-        max_length=255, blank=True,
-        verbose_name="Transaction ID CinetPay"
-    )
-    cinetpay_payment_url = models.URLField(
-        blank=True, verbose_name="URL de paiement CinetPay"
-    )
-
-    # Monetbil references
     monetbil_payment_id = models.CharField(
-        max_length=255, blank=True, null=True,
-        verbose_name="Payment ID Monetbil"
+        max_length=255, blank=True, default="",
+        verbose_name="MonetBil Payment ID",
+        help_text="ID de transaction MonetBil (reçu via webhook)"
     )
-    monetbil_payment_url = models.URLField(
-        blank=True, verbose_name="URL de paiement Monetbil"
+    pawapay_deposit_id = models.CharField(
+        max_length=255, blank=True, default="",
+        verbose_name="PawaPay Deposit ID",
+        help_text="ID de dépôt PawaPay (reçu via API/webhook)"
+    )
+    payment_url = models.URLField(
+        blank=True, verbose_name="URL de paiement (MonetBil/PawaPay)"
     )
 
     # What is being paid for (one of these should be set)

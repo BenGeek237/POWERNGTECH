@@ -1,81 +1,142 @@
 <template>
   <div class="auth-page">
-    <div class="auth-card">
-      <div class="auth-header">
-        <RouterLink to="/" class="auth-logo">
-          <img src="@/assets/logo.png" alt="POWER NG TECHNOLOGIE" class="logo-image" />
+    <!-- Background decoration -->
+    <div class="auth-bg">
+      <div class="auth-orb auth-orb-1"></div>
+      <div class="auth-orb auth-orb-2"></div>
+      <div class="auth-grid-pattern"></div>
+    </div>
+
+    <!-- Left panel (branding) - Desktop only -->
+    <div class="auth-branding">
+      <div class="branding-content">
+        <RouterLink to="/" class="brand-logo">
+          <img src="@/assets/logo.png" alt="POWER NG TECHNOLOGIE" class="brand-logo-image" />
         </RouterLink>
-        <h1 class="auth-title">Créer un compte</h1>
-        <p class="auth-subtitle">Rejoignez notre communauté d'apprenants.</p>
+        <h2 class="brand-tagline">
+          Rejoignez <span class="brand-accent">l'excellence</span>
+        </h2>
+        <p class="brand-desc">
+          Créez votre compte pour accéder à nos formations professionnelles et acheter du matériel de qualité.
+        </p>
+        <div class="brand-features">
+          <div class="brand-feature" v-for="f in features" :key="f.text">
+            <component :is="f.icon" :size="18" />
+            <span>{{ f.text }}</span>
+          </div>
+        </div>
       </div>
+    </div>
 
-      <div v-if="authStore.error" class="alert alert-error" style="margin-bottom:1rem">
-        <span>⚠️</span><span>{{ authStore.error }}</span>
+    <!-- Right panel (form) -->
+    <div class="auth-form-panel">
+      <div class="auth-card">
+        <!-- Mobile logo -->
+        <RouterLink to="/" class="auth-mobile-logo">
+          <img src="@/assets/logo.png" alt="POWER NG TECHNOLOGIE" class="mobile-logo-img" />
+        </RouterLink>
+
+        <!-- Header -->
+        <div class="auth-header">
+          <h1 class="auth-title">Créer un compte</h1>
+          <p class="auth-subtitle">Rejoignez notre communauté d'apprenants.</p>
+        </div>
+
+        <div v-if="authStore.error" class="alert alert-error" style="margin-bottom:1rem">
+          <AlertTriangle :size="18" stroke-width="1.75" />
+          <span>{{ authStore.error }}</span>
+        </div>
+
+        <form @submit.prevent="handleRegister" class="auth-form" novalidate>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="first_name" class="form-label">Prénom</label>
+              <div class="input-icon-wrap">
+                <User :size="18" class="input-icon" />
+                <input id="first_name" v-model="form.first_name" type="text" class="form-input has-icon" :class="{'is-error':errors.first_name}" placeholder="Votre prénom" required />
+              </div>
+              <span v-if="errors.first_name" class="form-error">{{ errors.first_name }}</span>
+            </div>
+            <div class="form-group">
+              <label for="last_name" class="form-label">Nom</label>
+              <div class="input-icon-wrap">
+                <User :size="18" class="input-icon" />
+                <input id="last_name" v-model="form.last_name" type="text" class="form-input has-icon" :class="{'is-error':errors.last_name}" placeholder="Votre nom" required />
+              </div>
+              <span v-if="errors.last_name" class="form-error">{{ errors.last_name }}</span>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="reg-email" class="form-label">Adresse email</label>
+            <div class="input-icon-wrap">
+              <Mail :size="18" class="input-icon" />
+              <input id="reg-email" v-model="form.email" type="email" class="form-input has-icon" :class="{'is-error':errors.email}" placeholder="vous@exemple.com" required />
+            </div>
+            <span v-if="errors.email" class="form-error">{{ errors.email }}</span>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="country" class="form-label">Pays</label>
+              <div class="input-icon-wrap">
+                <Globe :size="18" class="input-icon" />
+                <select id="country" v-model="form.country" class="form-select has-icon" @change="onCountryChange">
+                  <optgroup label="Afrique">
+                    <option v-for="c in africanCountries" :key="c.code" :value="c.code">{{ c.name }}</option>
+                  </optgroup>
+                  <optgroup label="Autres">
+                    <option v-for="c in otherCountries" :key="c.code" :value="c.code">{{ c.name }}</option>
+                  </optgroup>
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="city" class="form-label">Ville</label>
+              <div class="input-icon-wrap">
+                <MapPin :size="18" class="input-icon" />
+                <input id="city" v-model="form.city" type="text" class="form-input has-icon" placeholder="Douala..." />
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="phone" class="form-label">Téléphone</label>
+            <div class="phone-input-wrapper">
+              <span class="phone-prefix">{{ phonePrefix }}</span>
+              <input id="phone" v-model="rawPhone" type="tel" class="form-input phone-input" placeholder="6XX XXX XXX" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="reg-password" class="form-label">Mot de passe</label>
+            <div class="input-icon-wrap">
+              <Lock :size="18" class="input-icon" />
+              <input id="reg-password" v-model="form.password" type="password" class="form-input has-icon" :class="{'is-error':errors.password}" placeholder="Min. 8 caractères" required />
+            </div>
+            <span v-if="errors.password" class="form-error">{{ errors.password }}</span>
+          </div>
+
+          <div class="form-group">
+            <label for="reg-password-confirm" class="form-label">Confirmer le mot de passe</label>
+            <div class="input-icon-wrap">
+              <Lock :size="18" class="input-icon" />
+              <input id="reg-password-confirm" v-model="form.password_confirm" type="password" class="form-input has-icon" :class="{'is-error':errors.password_confirm}" placeholder="Répétez le mot de passe" required />
+            </div>
+            <span v-if="errors.password_confirm" class="form-error">{{ errors.password_confirm }}</span>
+          </div>
+
+          <button type="submit" class="auth-submit-btn" :disabled="authStore.loading">
+            <span v-if="authStore.loading" class="auth-spinner"></span>
+            <UserPlus v-else :size="18" />
+            <span>{{ authStore.loading ? "Création..." : "Créer mon compte" }}</span>
+          </button>
+        </form>
+
+        <p class="auth-switch">
+          Déjà un compte ? <RouterLink to="/auth/connexion">Se connecter</RouterLink>
+        </p>
       </div>
-
-      <form @submit.prevent="handleRegister" class="auth-form" novalidate>
-        <div class="form-row">
-          <div class="form-group">
-            <label for="first_name" class="form-label">Prénom</label>
-            <input id="first_name" v-model="form.first_name" type="text" class="form-input" :class="{'is-error':errors.first_name}" placeholder="Votre prénom" required />
-            <span v-if="errors.first_name" class="form-error">{{ errors.first_name }}</span>
-          </div>
-          <div class="form-group">
-            <label for="last_name" class="form-label">Nom</label>
-            <input id="last_name" v-model="form.last_name" type="text" class="form-input" :class="{'is-error':errors.last_name}" placeholder="Votre nom" required />
-            <span v-if="errors.last_name" class="form-error">{{ errors.last_name }}</span>
-          </div>
-        </div>
-        <div class="form-group">
-          <label for="reg-email" class="form-label">Adresse email</label>
-          <input id="reg-email" v-model="form.email" type="email" class="form-input" :class="{'is-error':errors.email}" placeholder="vous@exemple.com" required />
-          <span v-if="errors.email" class="form-error">{{ errors.email }}</span>
-        </div>
-
-        <div class="form-row">
-          <div class="form-group">
-            <label for="country" class="form-label">Pays</label>
-            <select id="country" v-model="form.country" class="form-select" @change="onCountryChange">
-              <optgroup label="Afrique">
-                <option v-for="c in africanCountries" :key="c.code" :value="c.code">{{ c.name }}</option>
-              </optgroup>
-              <optgroup label="Autres">
-                <option v-for="c in otherCountries" :key="c.code" :value="c.code">{{ c.name }}</option>
-              </optgroup>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="city" class="form-label">Ville</label>
-            <input id="city" v-model="form.city" type="text" class="form-input" placeholder="Douala..." />
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label for="phone" class="form-label">Téléphone</label>
-          <div class="phone-input-wrapper">
-            <span class="phone-prefix">{{ phonePrefix }}</span>
-            <input id="phone" v-model="rawPhone" type="tel" class="form-input phone-input" placeholder="6XX XXX XXX" />
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label for="reg-password" class="form-label">Mot de passe</label>
-          <input id="reg-password" v-model="form.password" type="password" class="form-input" :class="{'is-error':errors.password}" placeholder="Min. 8 caractères" required />
-          <span v-if="errors.password" class="form-error">{{ errors.password }}</span>
-        </div>
-        <div class="form-group">
-          <label for="reg-password-confirm" class="form-label">Confirmer le mot de passe</label>
-          <input id="reg-password-confirm" v-model="form.password_confirm" type="password" class="form-input" :class="{'is-error':errors.password_confirm}" placeholder="Répétez le mot de passe" required />
-          <span v-if="errors.password_confirm" class="form-error">{{ errors.password_confirm }}</span>
-        </div>
-        <button type="submit" class="btn btn-primary" style="width:100%" :disabled="authStore.loading">
-          <span v-if="authStore.loading" class="spinner" style="width:18px;height:18px;border-width:2px"></span>
-          {{ authStore.loading ? "Création..." : "Créer mon compte" }}
-        </button>
-      </form>
-      <p class="auth-switch">
-        Déjà un compte ? <RouterLink to="/auth/connexion">Se connecter</RouterLink>
-      </p>
     </div>
   </div>
 </template>
@@ -86,6 +147,7 @@ import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { africanCountries, otherCountries, getPrefixByCountryCode } from "@/utils/countries";
+import { AlertTriangle, Mail, Lock, UserPlus, User, Globe, MapPin, GraduationCap, Trophy, Users } from "lucide-vue-next";
 
 const authStore = useAuthStore();
 const uiStore = useUiStore();
@@ -96,6 +158,12 @@ const errors = reactive({ first_name:"", last_name:"", email:"", password:"", pa
 
 const phonePrefix = ref("+237");
 const rawPhone = ref("");
+
+const features = [
+  { icon: GraduationCap, text: "Formations pratiques et complètes" },
+  { icon: Trophy, text: "Attestation de fin de formation" },
+  { icon: Users, text: "Communauté d'entraide" },
+];
 
 function onCountryChange() {
   phonePrefix.value = getPrefixByCountryCode(form.country);
@@ -132,17 +200,203 @@ async function handleRegister() {
 </script>
 
 <style scoped>
-.auth-page { min-height: 80vh; display: flex; align-items: center; justify-content: center; padding: 2rem 1rem; background: var(--color-neutral-50); }
-.auth-card { width: 100%; max-width: 480px; background: #fff; border-radius: var(--radius-lg); padding: 2.5rem; box-shadow: var(--shadow-sm); border: 1px solid var(--color-neutral-200); }
-.auth-header { text-align: center; margin-bottom: 2rem; }
-.auth-logo { display: inline-block; margin-bottom: 1rem; }
-.logo-image { height: 48px; width: auto; }
-.auth-title { font-size: 1.5rem; font-weight: 700; color: var(--color-neutral-900); margin-bottom: 0.5rem; }
-.auth-subtitle { font-size: 0.875rem; color: var(--color-neutral-600); }
-.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-.auth-switch { margin-top: 1.5rem; text-align: center; font-size: 0.875rem; color: var(--color-neutral-600); }
-.auth-switch a { color: var(--color-primary); font-weight: 600; text-decoration: none; }
-.auth-switch a:hover { text-decoration: underline; }
+/* ── Auth Page (Shared logic with LoginView) ───────────────────────────────────── */
+.auth-page {
+  min-height: 100vh;
+  display: flex;
+  position: relative;
+  overflow: hidden;
+}
+
+.auth-bg {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+.auth-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(100px);
+}
+.auth-orb-1 {
+  width: 600px; height: 600px;
+  background: radial-gradient(circle, var(--color-primary) 0%, transparent 70%);
+  top: -15%; left: -10%;
+  opacity: 0.12;
+}
+.auth-orb-2 {
+  width: 400px; height: 400px;
+  background: radial-gradient(circle, var(--color-secondary) 0%, transparent 70%);
+  bottom: -10%; right: -5%;
+  opacity: 0.08;
+}
+.auth-grid-pattern {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0,0,0,.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,0,0,.02) 1px, transparent 1px);
+  background-size: 50px 50px;
+}
+
+.auth-branding {
+  flex: 1;
+  background: linear-gradient(160deg, var(--color-primary-dark) 0%, #0c3b1e 50%, #0f172a 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  position: relative;
+  overflow: hidden;
+}
+.auth-branding::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 30% 40%, rgba(22,163,74,.2) 0%, transparent 60%),
+    radial-gradient(ellipse at 70% 80%, rgba(217,119,6,.1) 0%, transparent 50%);
+  pointer-events: none;
+}
+.auth-branding::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px);
+  background-size: 60px 60px;
+  pointer-events: none;
+}
+.branding-content {
+  position: relative;
+  z-index: 1;
+  max-width: 420px;
+  color: #fff;
+}
+.brand-logo {
+  display: inline-flex;
+  margin-bottom: 2rem;
+  text-decoration: none;
+}
+.brand-logo-image {
+  height: 56px;
+  width: auto;
+  object-fit: contain;
+  filter: brightness(1.1);
+}
+.brand-tagline {
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1.2;
+  color: #fff;
+  margin-bottom: 1rem;
+}
+.brand-accent {
+  background: linear-gradient(135deg, var(--color-secondary-500) 0%, var(--color-secondary) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.brand-desc {
+  font-size: 1rem;
+  color: rgba(255,255,255,.6);
+  line-height: 1.7;
+  margin-bottom: 2rem;
+}
+.brand-features {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+.brand-feature {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  font-size: 0.9rem;
+  color: rgba(255,255,255,.75);
+}
+.brand-feature svg {
+  color: var(--color-secondary-500);
+  flex-shrink: 0;
+}
+
+.auth-form-panel {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  background: var(--color-neutral-50);
+  position: relative;
+  z-index: 1;
+}
+.auth-card {
+  width: 100%;
+  max-width: 500px;
+  animation: slideUp 0.5s ease both;
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.auth-mobile-logo {
+  display: none;
+  justify-content: center;
+  margin-bottom: 2rem;
+  text-decoration: none;
+}
+.mobile-logo-img {
+  height: 48px;
+  width: auto;
+  object-fit: contain;
+}
+
+.auth-header { margin-bottom: 1.75rem; }
+.auth-title {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--color-primary-dark);
+  margin: 0 0 0.3rem;
+}
+.auth-subtitle {
+  color: var(--color-neutral-500);
+  font-size: 0.9rem;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  margin-bottom: 1.5rem;
+}
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.input-icon-wrap {
+  position: relative;
+}
+.input-icon {
+  position: absolute;
+  left: 0.85rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-neutral-400);
+  pointer-events: none;
+  transition: color var(--transition-fast);
+}
+.has-icon {
+  padding-left: 2.75rem !important;
+}
+.input-icon-wrap:focus-within .input-icon {
+  color: var(--color-primary);
+}
 
 .phone-input-wrapper { display: flex; align-items: center; }
 .phone-prefix {
@@ -154,9 +408,75 @@ async function handleRegister() {
   color: var(--color-neutral-700);
   font-size: 0.875rem;
   font-weight: 500;
-  height: 42px;
+  height: 41.5px;
   display: flex;
   align-items: center;
 }
-.phone-input { border-radius: 0 var(--radius-md) var(--radius-md) 0; }
+.phone-input { border-radius: 0 var(--radius-md) var(--radius-md) 0; height: 41.5px;}
+
+.auth-submit-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.85rem 2rem;
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(135deg, var(--color-primary) 0%, #15803d 100%);
+  border: none;
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(.22,1,.36,1);
+  box-shadow: 0 4px 14px rgba(22,163,74,.2);
+  margin-top: 0.5rem;
+}
+.auth-submit-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(22,163,74,.3);
+}
+.auth-submit-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+.auth-spinner {
+  width: 18px; height: 18px;
+  border: 2.5px solid rgba(255,255,255,.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.auth-switch {
+  text-align: center;
+  font-size: 0.875rem;
+  color: var(--color-neutral-500);
+}
+.auth-switch a {
+  color: var(--color-primary);
+  font-weight: 600;
+  text-decoration: none;
+}
+.auth-switch a:hover { text-decoration: underline; }
+
+@media (max-width: 900px) {
+  .auth-page { flex-direction: column; }
+  .auth-branding { display: none; }
+  .auth-form-panel {
+    min-height: 100vh;
+    background:
+      radial-gradient(ellipse at 20% 0%, rgba(22,163,74,.04) 0%, transparent 60%),
+      var(--color-neutral-50);
+  }
+  .auth-mobile-logo { display: flex; }
+}
+
+@media (max-width: 480px) {
+  .auth-form-panel { padding: 1.25rem; }
+  .auth-title { font-size: 1.35rem; }
+  .form-row { grid-template-columns: 1fr; }
+}
 </style>

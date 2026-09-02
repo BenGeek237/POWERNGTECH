@@ -1,6 +1,6 @@
 <template>
   <AppLayout>
-    <div class="page-header"><div class="container"><h1 class="page-title">Nous contacter</h1><p class="page-subtitle">Notre équipe est disponible pour répondre à toutes vos questions.</p></div></div>
+    <div class="page-banner"><div class="container"><p class="page-banner-label">Contact</p><h1 class="page-banner-title">Nous contacter</h1><p class="page-banner-desc">Notre équipe est disponible pour répondre à toutes vos questions.</p></div></div>
     <section class="section">
       <div class="container contact-layout">
         <!-- Info -->

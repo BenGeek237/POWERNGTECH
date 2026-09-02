@@ -1,11 +1,11 @@
 <template>
   <AppLayout>
     <!-- Header -->
-    <div class="page-header">
+    <div class="page-banner">
       <div class="container">
-        <p class="page-label">À propos</p>
-        <h1 class="page-title">POWER NG TECHNOLOGIE</h1>
-        <p class="page-desc">
+        <p class="page-banner-label">À propos</p>
+        <h1 class="page-banner-title">POWER NG TECHNOLOGIE</h1>
+        <p class="page-banner-desc">
           Votre partenaire technologique basé à Ngaoundéré, rayonnant en Afrique et dans le monde.
           Formation professionnelle et équipements de qualité depuis 2019.
         </p>

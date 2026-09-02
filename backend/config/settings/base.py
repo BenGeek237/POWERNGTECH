@@ -172,18 +172,25 @@ EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "POWER NG TECHNOLOGIE <noreply@powerngtech.com>")
 
-# CAMERPAY
-CAMERPAY_API_KEY = os.getenv("CAMERPAY_API_KEY", "")
-CAMERPAY_SECRET_KEY = os.getenv("CAMERPAY_SECRET_KEY", "")
-CAMERPAY_BASE_URL = os.getenv("CAMERPAY_BASE_URL", "https://app.camerpay.com/api/v1")
-CAMERPAY_WEBHOOK_SECRET = os.getenv("CAMERPAY_WEBHOOK_SECRET", "")
 
-# MONETBIL
-MONETBIL_SERVICE_KEY = os.getenv("MONETBIL_SERVICE_KEY", "")
-MONETBIL_SERVICE_SECRET = os.getenv("MONETBIL_SERVICE_SECRET", "")
 
 # Frontend URL
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+
+# MonetBil Payment Gateway
+MONETBIL_SERVICE_KEY = os.getenv("MONETBIL_SERVICE_KEY", "")
+MONETBIL_NOTIFY_URL = os.getenv(
+    "MONETBIL_NOTIFY_URL",
+    "http://localhost:8000/api/paiements/webhook/monetbil/"
+)
+
+# PawaPay Payment Gateway
+PAWAPAY_API_KEY = os.getenv("PAWAPAY_API_KEY", "")
+PAWAPAY_BASE_URL = os.getenv("PAWAPAY_BASE_URL", "https://api.pawapay.cloud")
+MONETBIL_RETURN_URL = os.getenv(
+    "MONETBIL_RETURN_URL",
+    "http://localhost:5173/paiement/retour"
+)
 
 # API Documentation
 SPECTACULAR_SETTINGS = {

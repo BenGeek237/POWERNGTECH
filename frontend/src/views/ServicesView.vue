@@ -1,11 +1,11 @@
 <template>
   <AppLayout>
     <!-- Header -->
-    <div class="page-header">
+    <div class="page-banner">
       <div class="container">
-        <p class="page-label">Services</p>
-        <h1 class="page-title">Ce que nous proposons</h1>
-        <p class="page-desc">
+        <p class="page-banner-label">Services</p>
+        <h1 class="page-banner-title">Ce que nous proposons</h1>
+        <p class="page-banner-desc">
           Des prestations professionnelles en énergie, électronique et maintenance,
           avec un accompagnement de A à Z.
         </p>

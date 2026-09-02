@@ -1,9 +1,10 @@
 <template>
   <AppLayout>
-    <div class="page-header">
+    <div class="page-banner">
       <div class="container">
-        <h1 class="page-title">Boutique</h1>
-        <p class="page-subtitle">Équipements solaires, électroniques et électrotechniques de qualité professionnelle.</p>
+        <p class="page-banner-label">Notre boutique</p>
+        <h1 class="page-banner-title">Boutique</h1>
+        <p class="page-banner-desc">Équipements solaires, électroniques et électrotechniques de qualité professionnelle.</p>
       </div>
     </div>
     <section class="section">
