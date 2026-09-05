@@ -32,13 +32,10 @@ EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 USE_R2_STORAGE = os.getenv("USE_R2_STORAGE", "True") == "True"
 
 if USE_R2_STORAGE:
-    STORAGES = {
-        "default": {
-            "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
-        },
-        "staticfiles": {
-            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
-        },
+    # On met uniquement à jour le stockage par défaut (fichiers médias) pour R2
+    # Le stockage statique reste sur Whitenoise (défini dans base.py)
+    STORAGES["default"] = {
+        "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
     }
 
     AWS_ACCESS_KEY_ID = os.getenv("R2_ACCESS_KEY_ID", "")
