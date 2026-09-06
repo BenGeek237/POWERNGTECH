@@ -82,9 +82,21 @@ MAX_ZIP_SIZE_MB = 500
 ALLOWED_ZIP_TYPES = ["application/zip", "application/x-zip-compressed", "application/x-zip"]
 
 
+def _get_content_type(file):
+    """Get content type from an uploaded file or a FieldFile."""
+    if hasattr(file, 'content_type'):
+        return file.content_type
+    # Fallback: guess from the file name
+    import mimetypes
+    name = getattr(file, 'name', '') or ''
+    ct, _ = mimetypes.guess_type(name)
+    return ct or 'application/octet-stream'
+
+
 def validate_image_file(file):
     """Validate that an uploaded file is a valid image under size limit."""
-    if file.content_type not in ALLOWED_IMAGE_TYPES:
+    content_type = _get_content_type(file)
+    if content_type not in ALLOWED_IMAGE_TYPES:
         raise ValidationError(
             f"Type de fichier non accepté. Types acceptés : JPEG, PNG, WebP."
         )
@@ -96,7 +108,8 @@ def validate_image_file(file):
 
 def validate_video_file(file):
     """Validate that an uploaded file is a valid video under size limit."""
-    if file.content_type not in ALLOWED_VIDEO_TYPES:
+    content_type = _get_content_type(file)
+    if content_type not in ALLOWED_VIDEO_TYPES:
         raise ValidationError(
             "Type de fichier non accepté. Types acceptés : MP4, WebM, OGG."
         )
@@ -108,7 +121,8 @@ def validate_video_file(file):
 
 def validate_pdf_file(file):
     """Validate that an uploaded file is a valid PDF under size limit."""
-    if file.content_type not in ALLOWED_PDF_TYPES:
+    content_type = _get_content_type(file)
+    if content_type not in ALLOWED_PDF_TYPES:
         raise ValidationError("Seuls les fichiers PDF sont acceptés.")
     if file.size > MAX_PDF_SIZE_MB * 1024 * 1024:
         raise ValidationError(
@@ -118,7 +132,8 @@ def validate_pdf_file(file):
 
 def validate_zip_file(file):
     """Validate that an uploaded file is a valid ZIP under size limit."""
-    if file.content_type not in ALLOWED_ZIP_TYPES:
+    content_type = _get_content_type(file)
+    if content_type not in ALLOWED_ZIP_TYPES:
         raise ValidationError(
             "Type de fichier non accepté. Seuls les fichiers ZIP sont acceptés."
         )
