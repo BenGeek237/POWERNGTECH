@@ -3,7 +3,7 @@ POWER NG TECHNOLOGIE - Production Settings
 """
 from .base import *
 
-DEBUG = False
+DEBUG = os.getenv("DEBUG", "False") == "True"
 
 # Security settings for production
 SECURE_HSTS_SECONDS = 31536000
