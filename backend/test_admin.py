@@ -11,8 +11,8 @@ try:
     login_success = c.login(email="admin@powerngtech.com", password="Admin@PowerNG2026!")
     print(f"Login success: {login_success}")
     
-    # Fetch admin page
-    response = c.get("/admin/")
+    # Fetch admin subpage
+    response = c.get("/admin/accounts/customuser/")
     print(f"Admin page status: {response.status_code}")
     if response.status_code >= 400:
         print(response.content.decode('utf-8'))
