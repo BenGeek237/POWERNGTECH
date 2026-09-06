@@ -9,7 +9,9 @@ DEBUG = False
 SECURE_HSTS_SECONDS = 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
-SECURE_SSL_REDIRECT = True
+# Render gère le SSL en amont (reverse proxy), ne pas forcer la redirection
+SECURE_SSL_REDIRECT = False
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 SECURE_BROWSER_XSS_FILTER = True
@@ -29,7 +31,7 @@ EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 #   R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME,
 #   R2_ENDPOINT_URL, R2_CUSTOM_DOMAIN
 
-USE_R2_STORAGE = os.getenv("USE_R2_STORAGE", "True") == "True"
+USE_R2_STORAGE = os.getenv("USE_R2_STORAGE", "False") == "True"
 
 if USE_R2_STORAGE:
     # On met uniquement à jour le stockage par défaut (fichiers médias) pour R2
