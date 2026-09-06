@@ -21,7 +21,11 @@ X_FRAME_OPTIONS = "DENY"
 # ---------------------------------------------------------------------------
 # Email — use real SMTP in production (Gmail)
 # ---------------------------------------------------------------------------
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+# Email — use real SMTP only if configured, otherwise fallback to console
+if os.getenv("EMAIL_HOST_USER"):
+    EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+else:
+    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
 # ---------------------------------------------------------------------------
 # Cloudflare R2 — S3-compatible object storage for media files
