@@ -19,8 +19,8 @@
           <span class="hero-title-accent">énergie &amp; technologie</span>
         </h1>
         <p class="hero-subtitle">
-          POWER NG TECHNOLOGIE vous forme aux métiers de l'énergie solaire,
-          de l'électronique et de l'électrotechnique. Des formations pratiques
+          POWER NG TECHNOLOGIE vous forme aux métiers de l'énergie renouvelable,
+          de l'électronique, l'électronique de puissance,l'électrotechnique et l'informatique industrielle, électrotechnique. Des formations pratiques
           encadrées par des professionnels.
         </p>
         <div class="hero-actions">

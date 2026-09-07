@@ -11,13 +11,6 @@ from rest_framework.views import APIView
 from drf_spectacular.utils import extend_schema
 
 from .models import Payment
-from .monetbil import (
-    initiate_payment,
-    check_payment,
-    generate_payment_ref,
-    MONETBIL_STATUS_SUCCESS,
-    MONETBIL_STATUS_CANCELLED,
-)
 from .pawapay import PawaPayService, PawaPayError
 
 from apps.formations.models import Formation, Enrollment
@@ -125,9 +118,10 @@ class InitiatePaymentView(APIView):
             amount = int(order.total_amount)
             item_ref = f"order-{order.pk}"
 
-        # Generate a unique payment reference
-        payment_ref = generate_payment_ref()
-        selected_provider = data.get("provider", Payment.Provider.MTN)
+        # Generate a unique payment reference (UUID)
+        import uuid
+        payment_ref = str(uuid.uuid4())
+        selected_provider = Payment.Provider.PAWAPAY
 
         # Create the Payment record in our database
         payment = Payment.objects.create(
@@ -166,51 +160,10 @@ class InitiatePaymentView(APIView):
                 payment.status = Payment.Status.FAILED
                 payment.save(update_fields=["status"])
                 return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
-        # ── MonetBil Gateway (default) ──
-        result = initiate_payment(
-            amount=amount,
-            payment_ref=payment_ref,
-            item_ref=item_ref,
-            phone=data.get("phone", ""),
-            email=user.email,
-            first_name=user.first_name,
-            last_name=user.last_name,
-        )
-
-        if result["success"]:
-            # Save the payment URL
-            payment.payment_url = result["payment_url"]
-            payment.status = Payment.Status.PENDING
-            payment.save(update_fields=["payment_url", "status"])
-
-            logger.info(
-                f"Payment initiated: ref={payment_ref}, "
-                f"amount={amount} FCFA, user={user.email}"
-            )
-
-            return Response({
-                "payment_url": result["payment_url"],
-                "reference": payment_ref,
-                "message": "Redirection vers la page de paiement...",
-            })
-        else:
-            # MonetBil API returned an error
-            payment.status = Payment.Status.FAILED
-            payment.save(update_fields=["status"])
-
-            logger.error(
-                f"Payment initiation failed: ref={payment_ref}, "
-                f"error={result.get('error')}"
-            )
-
-            return Response(
-                {"error": result.get("error", "Erreur lors de l'initiation du paiement.")},
-                status=status.HTTP_502_BAD_GATEWAY,
-            )
-
-
-@extend_schema(tags=["Paiements"])
+        return Response(
+            {"error": "Fournisseur de paiement non supporté."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )@extend_schema(tags=["Paiements"])
 class PaymentStatusView(APIView):
     """
     GET /api/paiements/statut/{reference}/
@@ -230,95 +183,14 @@ class PaymentStatusView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        # If payment is still pending, check with MonetBil
+        # If payment is still pending, check with PawaPay (to be implemented if needed)
         if payment.status in (
             Payment.Status.INITIATED,
             Payment.Status.PENDING,
         ):
-            # Try to check with MonetBil using the payment_ref
-            # Note: MonetBil webhook is the primary notification mechanism
             pass
 
         return Response(PaymentStatusSerializer(payment).data)
-
-
-@extend_schema(tags=["Paiements"])
-class MonetBilWebhookView(APIView):
-    """
-    POST /api/paiements/webhook/monetbil/
-    Receives payment notifications from MonetBil.
-
-    MonetBil sends a POST with a paymentId when a payment status changes.
-    We then call checkPayment to verify the transaction.
-    """
-    permission_classes = [permissions.AllowAny]
-    authentication_classes = []  # No auth for webhooks
-
-    def post(self, request):
-        payment_id = request.data.get("paymentId") or request.POST.get("paymentId")
-
-        if not payment_id:
-            logger.warning("MonetBil webhook: No paymentId received")
-            return Response(
-                {"error": "paymentId manquant."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        logger.info(f"MonetBil webhook received: paymentId={payment_id}")
-
-        # Verify the payment with MonetBil
-        result = check_payment(payment_id)
-        transaction = result.get("transaction", {})
-        payment_ref = transaction.get("payment_ref", "")
-
-        if not payment_ref:
-            logger.warning(
-                f"MonetBil webhook: No payment_ref in transaction "
-                f"for paymentId={payment_id}"
-            )
-            return Response({"status": "ignored"})
-
-        # Find the payment in our database
-        try:
-            payment = Payment.objects.get(transaction_id=payment_ref)
-        except Payment.DoesNotExist:
-            logger.warning(
-                f"MonetBil webhook: Payment not found for ref={payment_ref}"
-            )
-            return Response({"status": "not_found"})
-
-        # Don't process already completed payments
-        if payment.status == Payment.Status.SUCCESS:
-            logger.info(f"MonetBil webhook: Payment {payment_ref} already processed")
-            return Response({"status": "already_processed"})
-
-        # Store the MonetBil payment ID for future reference
-        payment.monetbil_payment_id = payment_id
-        payment.save(update_fields=["monetbil_payment_id"])
-
-        monetbil_status = result.get("status", 0)
-
-        if monetbil_status == MONETBIL_STATUS_SUCCESS:
-            # Payment successful — activate enrollment/order
-            _activate_payment(payment)
-            logger.info(f"MonetBil webhook: Payment {payment_ref} SUCCESS")
-            return Response({"status": "success"})
-
-        elif monetbil_status == MONETBIL_STATUS_CANCELLED:
-            payment.status = Payment.Status.CANCELLED
-            payment.save(update_fields=["status"])
-            logger.info(f"MonetBil webhook: Payment {payment_ref} CANCELLED")
-            return Response({"status": "cancelled"})
-
-        else:
-            # Status 0 = still pending or failed
-            payment.status = Payment.Status.FAILED
-            payment.save(update_fields=["status"])
-            logger.info(
-                f"MonetBil webhook: Payment {payment_ref} "
-                f"status={monetbil_status}"
-            )
-            return Response({"status": "failed"})
 
 
 def _activate_payment(payment):

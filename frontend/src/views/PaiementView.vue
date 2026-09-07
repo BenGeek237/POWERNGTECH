@@ -77,23 +77,6 @@
               <span class="total-amount">{{ formatPrice(itemPrice) }} <small>FCFA</small></span>
             </div>
 
-            <!-- Provider Selection -->
-            <div class="provider-selector" style="margin: 1.5rem 0;">
-              <label class="form-label" style="display:block; font-weight:600; margin-bottom:0.5rem; font-size:0.9rem; color:var(--color-neutral-700)">
-                Moyen de paiement
-              </label>
-              <div style="display:flex; gap:1rem; flex-wrap:wrap;">
-                <label :class="{ selected: form.method === 'MTN' }" style="flex:1; min-width:140px; padding:0.75rem 1rem; border:2px solid var(--color-neutral-200); border-radius:10px; cursor:pointer; display:flex; align-items:center; gap:0.5rem; transition:all 0.2s;">
-                  <input type="radio" v-model="form.method" value="MTN" style="accent-color:var(--color-primary);" />
-                  <span style="font-weight:600; font-size:0.88rem;">MonetBil (Cameroun)</span>
-                </label>
-                <label :class="{ selected: form.method === 'PAWAPAY' }" style="flex:1; min-width:140px; padding:0.75rem 1rem; border:2px solid var(--color-neutral-200); border-radius:10px; cursor:pointer; display:flex; align-items:center; gap:0.5rem; transition:all 0.2s;">
-                  <input type="radio" v-model="form.method" value="PAWAPAY" style="accent-color:var(--color-primary);" />
-                  <span style="font-weight:600; font-size:0.88rem;">PawaPay (Afrique / Multi-pays)</span>
-                </label>
-              </div>
-            </div>
-
             <!-- Pay Button -->
             <form @submit.prevent="handlePayment">
               <button
@@ -187,7 +170,7 @@ const itemTitle = ref("");
 const itemPrice = ref(0);
 
 const form = reactive({
-  method: "MTN"  // Default provider — MonetBil handles operator selection
+  method: "PAWAPAY"
 });
 
 function formatPrice(p) {
