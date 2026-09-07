@@ -20,7 +20,7 @@
         </h1>
         <p class="hero-subtitle">
           POWER NG TECHNOLOGIE vous forme aux métiers de l'énergie renouvelable,
-          de l'électronique, l'électronique de puissance,l'électrotechnique et l'informatique industrielle, électrotechnique. Des formations pratiques
+          de l'électronique, l'électronique de puissance, l'électrotechnique et l'informatique industrielle. Des formations pratiques
           encadrées par des professionnels.
         </p>
         <div class="hero-actions">
