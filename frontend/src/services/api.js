@@ -6,7 +6,7 @@ import axios from "axios";
 
 // Base Axios instance
 const api = axios.create({
-  baseURL: "https://powerngtech.onrender.com/api",
+  baseURL: "https://api.powerngtech.com/api",
   timeout: 30000,
   headers: {
     "Content-Type": "application/json",
