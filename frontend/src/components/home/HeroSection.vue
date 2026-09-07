@@ -68,7 +68,7 @@
 import { ArrowRight, ShoppingBag, Zap, Sun, Award } from "lucide-vue-next";
 
 const stats = [
-  { value: "5 ans", label: "d'expérience" },
+  { value: "15 ans", label: "d'expérience" },
   { value: "500+", label: "étudiants formés" },
   { value: "20+", label: "formations" },
 ];
