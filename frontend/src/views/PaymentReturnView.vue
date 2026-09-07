@@ -2,6 +2,24 @@
   <AppLayout>
     <div class="return-page">
       <div class="container">
+        <!-- Error -->
+        <div v-if="error" class="return-result">
+          <div class="result-card failed-card">
+            <div class="result-icon failed-icon">
+              <XCircle :size="48" stroke-width="1.5" />
+            </div>
+            <h1>Vérification impossible</h1>
+            <p class="result-desc">
+              Votre paiement a bien été initié. Veuillez vérifier votre téléphone pour confirmer via code PIN.<br/>
+              Une fois confirmé, votre accès sera activé automatiquement.
+            </p>
+            <div class="result-actions">
+              <RouterLink to="/compte/paiements" class="btn btn-primary">Voir mes paiements</RouterLink>
+              <RouterLink to="/" class="btn btn-outline">Retour à l'accueil</RouterLink>
+            </div>
+          </div>
+        </div>
+
         <!-- Loading -->
         <div v-if="loading" class="return-loading">
           <div class="pulse-ring">
@@ -112,6 +130,7 @@ import {
 const route = useRoute();
 const payment = ref(null);
 const loading = ref(true);
+const error = ref(false);
 
 function formatPrice(p) {
   return new Intl.NumberFormat("fr-FR").format(p);
@@ -121,6 +140,9 @@ onMounted(async () => {
   try {
     const { data } = await paiementsApi.getStatus(route.params.reference);
     payment.value = data;
+  } catch (err) {
+    // Show a helpful message instead of a blank page
+    error.value = true;
   } finally {
     loading.value = false;
   }
