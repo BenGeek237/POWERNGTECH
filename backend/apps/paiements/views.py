@@ -1,7 +1,8 @@
 """
 POWER NG TECHNOLOGIE — Paiements Views
-Handles payment initialization via MonetBil, status checking, and webhook processing.
+Handles payment initialization via PawaPay, status checking, and webhook processing.
 """
+import uuid
 import logging
 from django.utils import timezone
 from django.conf import settings
@@ -28,7 +29,7 @@ class PaymentInitSerializer(serializers.Serializer):
     provider = serializers.ChoiceField(
         choices=Payment.Provider.choices,
         required=False,
-        default=Payment.Provider.MTN,
+        default=Payment.Provider.PAWAPAY,
     )
     formation_id = serializers.IntegerField(required=False, allow_null=True)
     order_id = serializers.IntegerField(required=False, allow_null=True)
@@ -64,8 +65,7 @@ class PaymentStatusSerializer(serializers.ModelSerializer):
 class InitiatePaymentView(APIView):
     """
     POST /api/paiements/initier/
-    Initialize a payment session via MonetBil.
-    Returns a payment_url to redirect the user to MonetBil's payment page.
+    Initialize a payment session via PawaPay.
     """
     permission_classes = [permissions.IsAuthenticated]
 
@@ -118,77 +118,71 @@ class InitiatePaymentView(APIView):
             amount = int(order.total_amount)
             item_ref = f"order-{order.pk}"
 
-        # Generate a unique payment reference (UUID)
-        import uuid
-        payment_ref = str(uuid.uuid4())
-        selected_provider = Payment.Provider.PAWAPAY
+        # Generate the PawaPay deposit ID — use this as the single reference
+        deposit_id = PawaPayService.generate_deposit_id()
 
-        # Create the Payment record in our database
+        # Create the Payment record using deposit_id as transaction_id
         payment = Payment.objects.create(
             user=user,
             amount=amount,
-            provider=selected_provider,
+            provider=Payment.Provider.PAWAPAY,
             status=Payment.Status.INITIATED,
-            transaction_id=payment_ref,
+            transaction_id=deposit_id,  # Same ID used everywhere
+            pawapay_deposit_id=deposit_id,
             formation=formation,
             order=order,
         )
 
-        # ── PawaPay Gateway ──
-        if selected_provider == Payment.Provider.PAWAPAY:
-            deposit_id = PawaPayService.generate_deposit_id()
-            payment.pawapay_deposit_id = deposit_id
-            user_phone = data.get("phone") or user.phone or "237677676767"
+        user_phone = data.get("phone") or user.phone or "237677676767"
 
-            try:
-                result = PawaPayService.initiate_deposit(
-                    amount=amount,
-                    deposit_id=deposit_id,
-                    phone=user_phone,
-                    provider_code="MTN",
-                    description=item_ref,
-                )
-                payment.status = Payment.Status.PENDING
-                payment.save(update_fields=["pawapay_deposit_id", "status"])
+        try:
+            result = PawaPayService.initiate_deposit(
+                amount=amount,
+                deposit_id=deposit_id,
+                phone=user_phone,
+                provider_code="MTN",
+                description=item_ref,
+            )
+            payment.status = Payment.Status.PENDING
+            payment.save(update_fields=["status"])
 
-                return Response({
-                    "reference": deposit_id,
-                    "status": "PENDING",
-                    "message": "Paiement initié avec succès. Veuillez entrer votre code PIN Mobile Money sur votre téléphone.",
-                })
-            except PawaPayError as e:
-                payment.status = Payment.Status.FAILED
-                payment.save(update_fields=["status"])
-                return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        return Response(
-            {"error": "Fournisseur de paiement non supporté."},
-            status=status.HTTP_400_BAD_REQUEST,
-        )@extend_schema(tags=["Paiements"])
+            return Response({
+                "reference": deposit_id,
+                "status": "PENDING",
+                "message": "Paiement initié avec succès. Veuillez entrer votre code PIN Mobile Money sur votre téléphone.",
+            })
+        except PawaPayError as e:
+            payment.status = Payment.Status.FAILED
+            payment.save(update_fields=["status"])
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@extend_schema(tags=["Paiements"])
 class PaymentStatusView(APIView):
     """
     GET /api/paiements/statut/{reference}/
-    Check the status of a payment. Also queries MonetBil if still pending.
+    Check the status of a payment by its reference (deposit_id).
     """
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, reference: str):
+        # Look up by transaction_id first, then by pawapay_deposit_id as fallback
         payment = Payment.objects.filter(
             user=request.user,
             transaction_id=reference,
         ).first()
 
         if not payment:
+            payment = Payment.objects.filter(
+                user=request.user,
+                pawapay_deposit_id=reference,
+            ).first()
+
+        if not payment:
             return Response(
                 {"error": "Paiement introuvable."},
                 status=status.HTTP_404_NOT_FOUND,
             )
-
-        # If payment is still pending, check with PawaPay (to be implemented if needed)
-        if payment.status in (
-            Payment.Status.INITIATED,
-            Payment.Status.PENDING,
-        ):
-            pass
 
         return Response(PaymentStatusSerializer(payment).data)
 
@@ -219,7 +213,7 @@ def _activate_payment(payment):
 @extend_schema(tags=["Paiements"])
 class PawaPayWebhookView(APIView):
     """
-    POST /api/paiements/pawapay-webhook/
+    POST /api/paiements/webhook/pawapay/
     Receives PawaPay deposit callbacks / notifications.
     """
     permission_classes = [permissions.AllowAny]

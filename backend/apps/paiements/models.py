@@ -1,6 +1,6 @@
 """
 POWER NG TECHNOLOGIE — Paiements Models
-Handles MonetBil payment records, webhooks, and enrollment activation.
+Handles PawaPay payment records, webhooks, and enrollment activation.
 """
 from django.db import models
 from django.contrib.auth import get_user_model
@@ -13,7 +13,7 @@ class Payment(TimeStampedModel):
     """
     Records a payment transaction.
     Links to either a Formation (for enrollment) or an Order (for products).
-    Payments are processed via MonetBil (MTN MoMo, Orange Money).
+    Payments are processed via PawaPay (Mobile Money).
     """
 
     class Status(models.TextChoices):
@@ -46,15 +46,15 @@ class Payment(TimeStampedModel):
     )
     provider = models.CharField(
         max_length=20, choices=Provider.choices,
-        default=Provider.MTN,
+        default=Provider.PAWAPAY,
         verbose_name="Méthode de paiement"
     )
 
-    # MonetBil references
+    # Payment references
     transaction_id = models.CharField(
         max_length=255, unique=True, blank=True, null=True,
         verbose_name="Référence de paiement",
-        help_text="Notre référence interne (payment_ref envoyé à MonetBil/PawaPay)"
+        help_text="Référence interne (deposit_id PawaPay)"
     )
     monetbil_payment_id = models.CharField(
         max_length=255, blank=True, default="",
@@ -67,7 +67,7 @@ class Payment(TimeStampedModel):
         help_text="ID de dépôt PawaPay (reçu via API/webhook)"
     )
     payment_url = models.URLField(
-        blank=True, verbose_name="URL de paiement (MonetBil/PawaPay)"
+        blank=True, verbose_name="URL de paiement"
     )
 
     # What is being paid for (one of these should be set)
