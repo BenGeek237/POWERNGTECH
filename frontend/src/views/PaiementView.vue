@@ -77,8 +77,25 @@
               <span class="total-amount">{{ formatPrice(itemPrice) }} <small>FCFA</small></span>
             </div>
 
-            <!-- Pay Button -->
             <form @submit.prevent="handlePayment">
+              <!-- Phone Input -->
+              <div class="form-group mb-4">
+                <label for="phone" class="form-label">Numéro Mobile Money (MTN/Orange)</label>
+                <div class="input-with-icon">
+                  <span class="input-icon">📞</span>
+                  <input
+                    type="tel"
+                    id="phone"
+                    v-model="form.phone"
+                    class="form-control"
+                    placeholder="Ex: 6XXXXXXXX"
+                    required
+                  />
+                </div>
+                <small class="form-hint">Le numéro sur lequel le prélèvement sera effectué.</small>
+              </div>
+
+              <!-- Pay Button -->
               <button
                 type="submit"
                 class="pay-button"
@@ -170,7 +187,8 @@ const itemTitle = ref("");
 const itemPrice = ref(0);
 
 const form = reactive({
-  method: "PAWAPAY"
+  method: "PAWAPAY",
+  phone: ""
 });
 
 function formatPrice(p) {
@@ -181,6 +199,11 @@ onMounted(async () => {
   if (!authStore.isAuthenticated) {
     router.push({ name: "login", query: { redirect: route.fullPath } });
     return;
+  }
+
+  // Pre-fill phone if available in profile
+  if (authStore.user?.phone) {
+    form.phone = authStore.user.phone;
   }
 
   if (route.query.type === 'formation' && route.query.id && route.query.slug) {
@@ -218,6 +241,7 @@ async function handlePayment() {
   try {
     const payload = {
       provider: form.method,
+      phone: form.phone,
     };
     if (itemType.value === "formation") {
       payload.formation_id = Number(itemId.value);
@@ -423,6 +447,53 @@ async function handlePayment() {
   font-size: 0.75rem;
   font-weight: 500;
   color: var(--color-neutral-500);
+}
+
+/* ── Form Inputs ─────────────────────────────────── */
+.form-group {
+  margin-bottom: 1.5rem;
+}
+.form-label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-neutral-700);
+  margin-bottom: 0.4rem;
+}
+.input-with-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.input-icon {
+  position: absolute;
+  left: 1rem;
+  font-size: 1.1rem;
+  color: var(--color-neutral-400);
+  pointer-events: none;
+}
+.form-control {
+  width: 100%;
+  padding: 0.85rem 1rem 0.85rem 2.5rem;
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-md);
+  font-size: 0.95rem;
+  font-family: var(--font-body);
+  color: var(--color-neutral-800);
+  background: var(--color-neutral-50);
+  transition: all var(--transition-fast);
+}
+.form-control:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.1);
+}
+.form-hint {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--color-neutral-500);
+  margin-top: 0.3rem;
 }
 
 /* ── Pay Button ──────────────────────────────────── */
