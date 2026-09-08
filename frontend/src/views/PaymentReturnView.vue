@@ -32,14 +32,14 @@
         <!-- Result -->
         <div v-else-if="payment" class="return-result" :class="`status-${payment.status}`">
           <!-- Success -->
-          <div v-if="payment.status === 'SUCCESS'" class="result-card success-card">
+          <div v-if="payment.status === 'SUCCES'" class="result-card success-card">
             <div class="result-icon success-icon">
               <CheckCircle :size="48" stroke-width="1.5" />
             </div>
             <div class="confetti-burst">🎉</div>
             <h1>Paiement réussi !</h1>
             <p class="result-desc">
-              Votre paiement a été traité avec succès. Vous avez maintenant accès à votre contenu.
+              Merci pour votre achat. Vous pouvez y accéder immédiatement depuis votre espace personnel.
             </p>
             <div class="result-details">
               <div class="detail-row">
@@ -60,7 +60,7 @@
           </div>
 
           <!-- Pending -->
-          <div v-else-if="payment.status === 'PENDING' || payment.status === 'INITIATED'" class="result-card pending-card">
+          <div v-else-if="payment.status === 'EN_ATTENTE' || payment.status === 'INITIE'" class="result-card pending-card">
             <div class="result-icon pending-icon">
               <Clock :size="48" stroke-width="1.5" />
             </div>
@@ -88,9 +88,9 @@
             <div class="result-icon failed-icon">
               <XCircle :size="48" stroke-width="1.5" />
             </div>
-            <h1>{{ payment.status === 'CANCELLED' ? 'Paiement annulé' : 'Paiement échoué' }}</h1>
+            <h1>{{ payment.status === 'ANNULE' ? 'Paiement annulé' : 'Paiement échoué' }}</h1>
             <p class="result-desc">
-              {{ payment.status === 'CANCELLED'
+              {{ payment.status === 'ANNULE'
                 ? "Le paiement a été annulé. Aucune somme n'a été débitée."
                 : "Le paiement n'a pas pu être traité. Veuillez réessayer ou contacter le support."
               }}
