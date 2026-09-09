@@ -24,7 +24,7 @@ class PawaPayService:
     @classmethod
     def get_base_url(cls) -> str:
         url = getattr(settings, "PAWAPAY_BASE_URL", "https://api.sandbox.pawapay.cloud").strip()
-        if not url or url == "https://api.pawapay.cloud":
+        if not url:
             url = "https://api.sandbox.pawapay.cloud"
         return url.rstrip("/")
 
