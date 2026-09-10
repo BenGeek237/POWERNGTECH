@@ -187,4 +187,6 @@ class OrderItem(TimeStampedModel):
 
     @property
     def subtotal(self):
+        if self.quantity is None or self.unit_price is None:
+            return 0
         return self.quantity * self.unit_price
